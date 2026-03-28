@@ -3,47 +3,56 @@ type LooseRecord = Record<string, any>;
 type StoreLike = {
   dispatch: (action: any) => any;
   getState: () => LooseRecord;
+  subscribe?: (listener: () => void) => () => void;
 };
 
-type GameModule = {
-  B: new (seed?: string) => {
-    next: (min: number, max: number) => number;
-    nextInt: (min: number, max: number) => number;
-  };
-  a7: (payload: { flag: string; value: number }) => any;
-  aC: (days: number) => any;
-  aV: (payload: { location: string; amount: number }) => any;
-  aW: (location: any, unlock: any) => string;
-  aX: (payload: { character: string; id: string; cooldown: number }) => any;
-  ba: Record<string, any>;
-  bl: any[];
-  bn: (condition: string, flags: LooseRecord) => boolean;
-  v: (payload: { player: any; gameEvent: any; quest?: any }) => any;
-  w: () => any;
-  x: (
-    gameData: any,
-    player: any,
-    inventory: any,
-    gameEvent: any,
-    calendar: any,
-    breakthrough: any,
-    fallenStar: any,
-    globalFlags: any,
-    characters: any,
-  ) => LooseRecord;
-  y: () => LooseRecord;
+type LuckMode = 'force' | 'neverWorse';
+
+type RuntimeConfig = {
+  mode: LuckMode;
+  multiplier: number;
 };
 
-type WeightedOutcome = {
+type PityAdjustment = {
   index: number;
-  event: any;
+  condition: string | null;
+  rarity: string | null;
+  baseWeight: number;
+  vanillaMultiplier: number;
+  configuredMultiplier: number;
+  appliedMultiplier: number;
+  fixedMultiplier: number;
+  nativeCount: number;
+  adjustedCount: number;
+  fixedCount: number;
+  delta: number;
 };
 
-const MOD_TAG = '[LuckyAllAround-x6]';
+type ExplorePatchContext = {
+  startedAt: string;
+  playerName: string;
+  locationName: string;
+  pityProgress: number;
+  pityProgressMultiplier: number;
+  lastEventIndex: number | null;
+  lastEventCount: number;
+  config: RuntimeConfig;
+  adjustments: PityAdjustment[];
+  adjustmentsByKey: Map<string, PityAdjustment>;
+  pushTrackingByKey: Map<string, { nativeSeen: number; adjustedPushed: number }>;
+};
+
+const MOD_TAG = '[LuckyAllAround]';
 const EXPLORE_PREFIX = 'Explore';
-const FIXED_PITY_MULTIPLIER = 6;
-const DEFAULT_UNLOCK_EXPLORATION_COUNT = 3;
-const CHARACTER_ENCOUNTER_CHANCE = 0.75;
+const DEFAULT_PITY_MULTIPLIER = 6;
+const MIN_PITY_MULTIPLIER = 1;
+const MAX_PITY_MULTIPLIER = 10;
+const MODE_FLAG_KEY = 'luckyAllAround.mode';
+const MULTIPLIER_FLAG_KEY = 'luckyAllAround.multiplier';
+const LEGACY_MODE_FLAG_KEY = 'luckyAllAroundX6.mode';
+const LEGACY_MULTIPLIER_FLAG_KEY = 'luckyAllAroundX6.multiplier';
+const VANILLA_PITY_MULTIPLIERS = [10, 8, 4, 2];
+const VANILLA_DEFAULT_PITY_MULTIPLIER = 1;
 const RARITIES = [
   'mundane',
   'qitouched',
@@ -53,32 +62,114 @@ const RARITIES = [
   'transcendent',
 ];
 
-let allowNextNativeExploreClick = false;
-let explorationRng: InstanceType<GameModule['B']> | null = null;
-let cachedGameModulePromise: Promise<GameModule> | null = null;
+const capturedLocations = (window.modAPI?.gameData?.locations ??
+  {}) as Record<string, any>;
+const allPityConditions = Object.values(capturedLocations)
+  .flatMap((location) => location?.events ?? [])
+  .filter((event) => Boolean(event?.pity))
+  .map((event) => String(event.condition ?? ''))
+  .sort();
+
+const originalArrayPush = Array.prototype.push;
+
+let activeExplorePatch: ExplorePatchContext | null = null;
+let lastExploreDiagnostics: LooseRecord | null = null;
 
 function log(message: string, ...args: unknown[]) {
   console.log(MOD_TAG, message, ...args);
 }
 
-function runtimeImport<T>(specifier: string): Promise<T> {
-  return (0, eval)(`import(${JSON.stringify(specifier)})`) as Promise<T>;
-}
-
-function getGameModule(): Promise<GameModule> {
-  if (!cachedGameModulePromise) {
-    const moduleUrl = new URL('./Game.js', window.location.href).href;
-
-    cachedGameModulePromise = runtimeImport<GameModule>(moduleUrl).then(
-      (gameModule) => {
-        explorationRng = new gameModule.B();
-        log('Loaded runtime Game.js module');
-        return gameModule;
-      },
-    );
+function cloneForDebug<T>(value: T): T {
+  if (value == null) {
+    return value;
   }
 
-  return cachedGameModulePromise;
+  if (typeof structuredClone === 'function') {
+    try {
+      return structuredClone(value);
+    } catch {
+      // Fall through to JSON cloning.
+    }
+  }
+
+  try {
+    return JSON.parse(JSON.stringify(value)) as T;
+  } catch {
+    return value;
+  }
+}
+
+function clampMultiplier(value: unknown): number {
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return DEFAULT_PITY_MULTIPLIER;
+  }
+
+  return Math.min(
+    MAX_PITY_MULTIPLIER,
+    Math.max(MIN_PITY_MULTIPLIER, Math.round(numericValue)),
+  );
+}
+
+function normalizeMode(value: unknown): LuckMode {
+  return value === 'neverWorse' ? 'neverWorse' : 'force';
+}
+
+function getRuntimeConfig(): RuntimeConfig {
+  const globalFlags = window.modAPI?.actions?.getGlobalFlags?.() ?? {};
+
+  return {
+    mode: normalizeMode(globalFlags[MODE_FLAG_KEY] ?? globalFlags[LEGACY_MODE_FLAG_KEY]),
+    multiplier: clampMultiplier(
+      globalFlags[MULTIPLIER_FLAG_KEY] ?? globalFlags[LEGACY_MULTIPLIER_FLAG_KEY],
+    ),
+  };
+}
+
+function updateRuntimeConfig(partialConfig: Partial<RuntimeConfig>): RuntimeConfig {
+  const nextConfig = {
+    ...getRuntimeConfig(),
+    ...partialConfig,
+  };
+  const normalizedConfig: RuntimeConfig = {
+    mode: normalizeMode(nextConfig.mode),
+    multiplier: clampMultiplier(nextConfig.multiplier),
+  };
+
+  window.modAPI?.actions?.setGlobalFlag?.(MODE_FLAG_KEY, normalizedConfig.mode);
+  window.modAPI?.actions?.setGlobalFlag?.(
+    MULTIPLIER_FLAG_KEY,
+    normalizedConfig.multiplier,
+  );
+
+  return normalizedConfig;
+}
+
+function describeConfig(config: RuntimeConfig): string {
+  if (config.mode === 'neverWorse') {
+    return `never worse than ${config.multiplier}x`;
+  }
+
+  return `force ${config.multiplier}x`;
+}
+
+function getAppliedMultiplier(
+  vanillaMultiplier: number,
+  config: RuntimeConfig,
+): number {
+  return config.mode === 'neverWorse'
+    ? Math.max(vanillaMultiplier, config.multiplier)
+    : config.multiplier;
+}
+
+function setLastExploreDiagnostics(value: LooseRecord) {
+  lastExploreDiagnostics = {
+    recordedAt: new Date().toISOString(),
+    version: MOD_METADATA.version,
+    config: cloneForDebug(value.config ?? getRuntimeConfig()),
+    ...cloneForDebug(value),
+  };
 }
 
 function getStore(): StoreLike | null {
@@ -87,6 +178,10 @@ function getStore(): StoreLike | null {
   }
 
   return window.gameStore as StoreLike;
+}
+
+function getPlayerName(player: any): string {
+  return [player?.forename, player?.surname].filter(Boolean).join(' ').trim();
 }
 
 function getExploreButton(target: EventTarget | null): HTMLButtonElement | null {
@@ -108,724 +203,755 @@ function getExploreButton(target: EventTarget | null): HTMLButtonElement | null 
   return button;
 }
 
-function evaluateCondition(
-  gameModule: GameModule,
-  condition: string | undefined,
-  flags: LooseRecord,
-): boolean {
-  if (!condition) {
-    return true;
-  }
-
-  return Boolean(gameModule.bn(condition, flags));
+function getRarityWeight(rarity: string | undefined): number {
+  return RARITIES.length - RARITIES.indexOf(rarity ?? '');
 }
 
-function findLastMatch<T>(
-  values: T[] | undefined,
-  predicate: (value: T) => boolean,
-): T | undefined {
-  if (!values) {
+function hashPlayerName(value: string): number {
+  let hash = 5381;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 33) ^ value.charCodeAt(index);
+  }
+
+  return hash >>> 0;
+}
+
+function buildShuffledIndexes(length: number, seed: number): number[] {
+  const indexes = Array.from({ length }, (_, index) => index);
+  let state = seed;
+
+  for (let index = length - 1; index > 0; index -= 1) {
+    state = ((state * 1664525 + 1013904223) | 0) >>> 0;
+    const swapIndex = state % (index + 1);
+    const current = indexes[index];
+    indexes[index] = indexes[swapIndex];
+    indexes[swapIndex] = current;
+  }
+
+  return indexes;
+}
+
+function getVanillaPityTierWeights(length: number): number[] {
+  return Array.from({ length }, (_, index) =>
+    index < VANILLA_PITY_MULTIPLIERS.length
+      ? VANILLA_PITY_MULTIPLIERS[index]
+      : VANILLA_DEFAULT_PITY_MULTIPLIER,
+  );
+}
+
+function getVanillaPityMultiplier(
+  condition: string | undefined,
+  playerName: string,
+): number {
+  if (!condition) {
+    return VANILLA_DEFAULT_PITY_MULTIPLIER;
+  }
+
+  const conditionIndex = allPityConditions.indexOf(condition);
+
+  if (conditionIndex === -1) {
+    return VANILLA_DEFAULT_PITY_MULTIPLIER;
+  }
+
+  const pityCount = allPityConditions.length;
+  const shuffledIndexes = buildShuffledIndexes(
+    pityCount,
+    hashPlayerName(playerName),
+  );
+
+  return getVanillaPityTierWeights(pityCount)[shuffledIndexes[conditionIndex]];
+}
+
+function getReactFiberFromElement(element: Element): any | null {
+  const ownKeys = Object.getOwnPropertyNames(element as object);
+
+  for (const key of ownKeys) {
+    if (key.startsWith('__reactFiber$') || key.startsWith('__reactContainer$')) {
+      return (element as LooseRecord)[key];
+    }
+  }
+
+  return null;
+}
+
+function findFlagsInFiber(fiber: any): LooseRecord | null {
+  let current = fiber;
+
+  while (current) {
+    const flagsFromMemoized = current.memoizedProps?.value?.flags;
+
+    if (flagsFromMemoized && typeof flagsFromMemoized === 'object') {
+      return flagsFromMemoized as LooseRecord;
+    }
+
+    const flagsFromPending = current.pendingProps?.value?.flags;
+
+    if (flagsFromPending && typeof flagsFromPending === 'object') {
+      return flagsFromPending as LooseRecord;
+    }
+
+    current = current.return;
+  }
+
+  return null;
+}
+
+function getFlagsFromButton(button: HTMLButtonElement): LooseRecord {
+  let currentElement: Element | null = button;
+
+  while (currentElement) {
+    const fiber = getReactFiberFromElement(currentElement);
+
+    if (fiber) {
+      const flags = findFlagsInFiber(fiber);
+
+      if (flags) {
+        return flags;
+      }
+    }
+
+    currentElement = currentElement.parentElement;
+  }
+
+  return {};
+}
+
+function findValueByKey(
+  value: unknown,
+  key: string,
+  seen: Set<unknown> = new Set(),
+): unknown {
+  if (!value || typeof value !== 'object' || seen.has(value)) {
     return undefined;
   }
 
-  for (let index = values.length - 1; index >= 0; index -= 1) {
-    const value = values[index];
+  seen.add(value);
 
-    if (predicate(value)) {
-      return value;
+  if (Object.prototype.hasOwnProperty.call(value, key)) {
+    return (value as LooseRecord)[key];
+  }
+
+  const nestedValues = Array.isArray(value)
+    ? value
+    : Object.values(value as LooseRecord);
+
+  for (const nestedValue of nestedValues) {
+    const foundValue = findValueByKey(nestedValue, key, seen);
+
+    if (foundValue !== undefined) {
+      return foundValue;
     }
   }
 
   return undefined;
 }
 
-function getFlagKey(value: string): string {
-  return window.modAPI?.utils?.flag?.(value) ?? value.replace(/[^\w]/g, '_');
-}
+function getPityProgress(state: LooseRecord, preferredFlags?: LooseRecord): number {
+  const candidateSources = [preferredFlags, state.gameEvent?.flags, state];
 
-function getFullItem(item: any): any {
-  return window.modAPI?.utils?.getFullItem?.(item) ?? item;
-}
+  for (const source of candidateSources) {
+    const foundValue = findValueByKey(source, 'globalSpecialEventPity');
+    const numericValue = Number(foundValue);
 
-function getExplorationAmount(player: any): number {
-  let explorationBonus = 0;
-
-  if (player?.mount) {
-    const mount = getFullItem(player.mount);
-
-    if (mount?.kind === 'mount') {
-      explorationBonus += mount.explorationBonus ?? 0;
-      explorationBonus += mount.enchantment?.explorationBonus ?? 0;
+    if (Number.isFinite(numericValue)) {
+      return numericValue;
     }
   }
 
-  return 1 + explorationBonus;
+  return 0;
 }
 
-function getRarityWeight(rarity: string): number {
-  return RARITIES.length - RARITIES.indexOf(rarity);
-}
+function buildPityAdjustment(
+  event: any,
+  index: number,
+  context: Pick<
+    ExplorePatchContext,
+    | 'config'
+    | 'playerName'
+    | 'pityProgressMultiplier'
+    | 'lastEventIndex'
+    | 'lastEventCount'
+  >,
+): PityAdjustment | null {
+  if (!event?.pity) {
+    return null;
+  }
 
-function buildFlagsSnapshot(
-  gameModule: GameModule,
-  state: LooseRecord,
-): LooseRecord {
-  return gameModule.x(
-    state.gameData,
-    state.player?.player,
-    state.inventory,
-    state.gameEvent,
-    state.calendar,
-    state.breakthrough,
-    state.fallenStar,
-    gameModule.y(),
-    state.characters,
+  const baseWeight = getRarityWeight(event.rarity);
+  const vanillaMultiplier = getVanillaPityMultiplier(
+    event.condition,
+    context.playerName,
   );
+  const appliedMultiplier = getAppliedMultiplier(vanillaMultiplier, context.config);
+
+  let nativeCount = Math.max(1, Math.ceil(baseWeight * vanillaMultiplier));
+  nativeCount = Math.ceil(nativeCount * context.pityProgressMultiplier);
+
+  let adjustedCount = Math.max(1, Math.ceil(baseWeight * appliedMultiplier));
+  adjustedCount = Math.ceil(adjustedCount * context.pityProgressMultiplier);
+
+  if (context.lastEventIndex === index) {
+    nativeCount -= context.lastEventCount;
+    adjustedCount -= context.lastEventCount;
+  }
+
+  nativeCount = Math.max(0, nativeCount);
+  adjustedCount = Math.max(0, adjustedCount);
+
+  return {
+    index,
+    condition: event.condition ?? null,
+    rarity: event.rarity ?? null,
+    baseWeight,
+    vanillaMultiplier,
+    configuredMultiplier: context.config.multiplier,
+    appliedMultiplier,
+    fixedMultiplier: appliedMultiplier,
+    nativeCount,
+    adjustedCount,
+    fixedCount: adjustedCount,
+    delta: adjustedCount - nativeCount,
+  };
 }
 
-function getCurrentQuestStep(
-  gameModule: GameModule,
-  questState: any,
-  flags: LooseRecord,
-  questDefinitions: Record<string, any>,
-): number {
-  const definition = questDefinitions[questState.name];
-
-  if (!definition) {
-    return -1;
-  }
-
-  let currentStepIndex = 0;
-
-  for (let index = 0; index < definition.steps.length; index += 1) {
-    const step = definition.steps[index];
-
-    if (
-      (step.kind === 'event' ||
-        step.kind === 'speakToCharacter' ||
-        step.kind === 'wait') &&
-      questState.completed?.includes(index)
-    ) {
-      currentStepIndex = index;
-    }
-  }
-
-  while (currentStepIndex < definition.steps.length) {
-    const step = definition.steps[currentStepIndex];
-
-    if (step.kind === 'condition') {
-      if (!evaluateCondition(gameModule, step.completionCondition, flags)) {
-        break;
-      }
-    } else if (step.kind === 'collect') {
-      if (!(step.completionCondition && evaluateCondition(gameModule, step.completionCondition, flags))) {
-        let currentAmount = flags[getFlagKey(step.item)] ?? 0;
-
-        for (const alternate of step.alternates ?? []) {
-          currentAmount += flags[getFlagKey(alternate)] ?? 0;
-        }
-
-        if (currentAmount < step.amount) {
-          break;
-        }
-      }
-    } else if (step.kind === 'event' || step.kind === 'speakToCharacter') {
-      if (step.completionCondition) {
-        if (!evaluateCondition(gameModule, step.completionCondition, flags)) {
-          break;
-        }
-      } else if (!questState.completed?.includes(currentStepIndex)) {
-        break;
-      }
-    } else {
-      if (step.kind === 'missionHall') {
-        break;
-      }
-
-      if (step.kind === 'flagValue') {
-        if ((flags[step.flag] ?? 0) < step.value) {
-          break;
-        }
-      } else if (step.kind === 'kill') {
-        if ((questState.killTally?.[step.enemy] ?? 0) < step.amount) {
-          break;
-        }
-      } else if (step.kind === 'wait') {
-        if (
-          (questState.waitMonths?.[currentStepIndex] ?? 0) < step.months &&
-          !questState.completed?.includes(currentStepIndex)
-        ) {
-          break;
-        }
-      } else if (
-        step.kind === 'raid' &&
-        (questState.raidsComplete ?? 0) < step.amount
-      ) {
-        break;
-      }
-    }
-
-    currentStepIndex += 1;
-  }
-
-  return currentStepIndex;
-}
-
-function getActiveKillQuestEnemies(
-  gameModule: GameModule,
-  state: LooseRecord,
-  flags: LooseRecord,
-): Set<string> {
-  const questDefinitions = window.modAPI?.gameData?.quests ?? {};
-  const activeEnemies = new Set<string>();
-
-  for (const questState of state.quests?.quests ?? []) {
-    const definition = questDefinitions[questState.name];
-
-    if (!definition) {
-      continue;
-    }
-
-    let currentStepIndex = getCurrentQuestStep(
-      gameModule,
-      questState,
-      flags,
-      questDefinitions,
-    );
-
-    if (currentStepIndex >= definition.steps.length) {
-      currentStepIndex = definition.steps.length - 1;
-    }
-
-    const step = definition.steps[currentStepIndex];
-
-    if (step?.kind === 'kill' && step.enemy) {
-      activeEnemies.add(step.enemy);
-    }
-  }
-
-  return activeEnemies;
-}
-
-function resolveCharacterLocation(
-  gameModule: GameModule,
-  character: any,
-  characterState: any,
-  flags: LooseRecord,
-  isFollowing: boolean,
-  currentLocation: string,
-  fallenStar: any,
-): string {
-  if (isFollowing) {
-    return currentLocation;
-  }
-
-  const relationshipPath = characterState.relationshipPath;
-  const relationships =
-    relationshipPath && character.relationshipPaths?.[relationshipPath]
-      ? character.relationshipPaths[relationshipPath]
-      : character.relationship ?? [];
-
-  if (relationships.length > 0) {
-    const relationship = relationships[characterState.relationshipIndex];
-
-    if (
-      relationship &&
-      characterState.approval >= relationship.requiredApproval &&
-      (!relationship.progressionEvent?.requirement ||
-        evaluateCondition(
-          gameModule,
-          relationship.progressionEvent.requirement.condition,
-          flags,
-        )) &&
-      relationship.progressionEvent.locationOverride
-    ) {
-      return relationship.progressionEvent.locationOverride;
-    }
-  }
-
-  const locationDefinition = findLastMatch<any>(
-    character.definitions?.[characterState.defIndex]?.locations,
-    (location) => evaluateCondition(gameModule, location.condition, flags),
-  );
-
-  if (!locationDefinition) {
-    return '';
-  }
-
-  switch (locationDefinition.kind) {
-    case 'wander':
-      return (
-        locationDefinition.route?.[characterState.locationCycleIndex ?? 0]
-          ?.location ?? ''
-      );
-
-    case 'random':
-      return (
-        locationDefinition.locations?.[characterState.locationCycleIndex ?? 0]
-          ?.location ?? ''
-      );
-
-    case 'static':
-      return locationDefinition.location ?? '';
-
-    case 'star': {
-      let highestThreat = 0;
-      let lowestThreat = 100;
-      let resolvedLocation = '';
-      const matchingLocations: string[] = [];
-
-      for (const [name, site] of Object.entries(
-        fallenStar?.activeSites ?? {},
-      )) {
-        const threat = (site as any)?.remainingThreatPercentage ?? 0;
-
-        if (locationDefinition.mode === 'highest') {
-          if (highestThreat < threat) {
-            highestThreat = threat;
-            resolvedLocation = name;
-          }
-        } else if (locationDefinition.mode === 'more' && locationDefinition.percentage) {
-          if (locationDefinition.percentage <= threat) {
-            matchingLocations.push(name);
-            resolvedLocation = matchingLocations[matchingLocations.length - 1];
-          }
-        } else if (locationDefinition.mode === 'less' && locationDefinition.percentage) {
-          if (locationDefinition.percentage >= threat) {
-            matchingLocations.push(name);
-            resolvedLocation = matchingLocations[matchingLocations.length - 1];
-          }
-        } else if (lowestThreat > threat) {
-          lowestThreat = threat;
-          resolvedLocation = name;
-        }
-      }
-
-      if (!resolvedLocation) {
-        resolvedLocation = locationDefinition.fallbackLocation ?? '';
-      }
-
-      return resolvedLocation;
-    }
-
-    default:
-      return '';
-  }
-}
-
-function startEvent(
-  dispatch: StoreLike['dispatch'],
-  gameModule: GameModule,
-  player: any,
-  gameEvent: any,
-  quest?: any,
-) {
-  dispatch(gameModule.v({ player, gameEvent, quest }));
-  dispatch(gameModule.w());
-}
-
-function maybeStartCharacterEncounter(
-  dispatch: StoreLike['dispatch'],
-  gameModule: GameModule,
-  state: LooseRecord,
-  flags: LooseRecord,
+function buildLocationAdjustments(
   locationName: string,
-): boolean {
-  const charactersState = state.characters;
-  const encounterRng = new gameModule.B();
-
-  if (
-    (charactersState?.globalEncounterCooldown ?? 0) > 0 ||
-    encounterRng.next(0, 1) > CHARACTER_ENCOUNTER_CHANCE
-  ) {
-    return false;
-  }
-
-  for (const character of gameModule.bl ?? []) {
-    if (
-      !character.definitions?.length ||
-      !evaluateCondition(gameModule, character.condition, flags)
-    ) {
-      continue;
-    }
-
-    const characterState = charactersState?.characterData?.[character.name];
-
-    if (!characterState || characterState.didEncounter || characterState.beaten) {
-      continue;
-    }
-
-    const resolvedLocation = resolveCharacterLocation(
-      gameModule,
-      character,
-      characterState,
-      flags,
-      charactersState?.followingCharacter === character.name,
-      locationName,
-      state.fallenStar,
-    );
-
-    if (resolvedLocation !== locationName) {
-      continue;
-    }
-
-    const definition = character.definitions[characterState.defIndex];
-
-    if (!definition) {
-      continue;
-    }
-
-    const encounterAvailable = (encounter: any) =>
-      !characterState.encounterCooldowns?.[encounter.id] &&
-      (!encounter.locations || encounter.locations.includes(locationName)) &&
-      evaluateCondition(gameModule, encounter.condition, flags);
-
-    const launchEncounter = (encounter: any, isBreakthroughEncounter = false) => {
-      const cooldown = encounter.cooldown
-        ? encounterRng.nextInt(encounter.cooldown.min, encounter.cooldown.max)
-        : 999999;
-
-      dispatch(
-        gameModule.aX({
-          character: character.name,
-          id: encounter.id,
-          cooldown,
-        }),
-      );
-      startEvent(dispatch, gameModule, state.player.player, {
-        location: locationName,
-        steps: encounter.event,
-      });
-      dispatch({ type: 'characters/setGlobalEncounterCooldown' });
-
-      if (isBreakthroughEncounter) {
-        dispatch({
-          type: 'characters/setBreakthroughEncounterDone',
-          payload: character.name,
-        });
-      }
-    };
-
-    if (
-      !characterState.doneBreakthroughEncounter &&
-      definition.breakthroughEncounter &&
-      encounterAvailable(definition.breakthroughEncounter)
-    ) {
-      launchEncounter(definition.breakthroughEncounter, true);
-      return true;
-    }
-
-    if (definition.kind !== 'enemy' || !characterState.beaten) {
-      const availableEncounters = (definition.encounters ?? []).filter(
-        encounterAvailable,
-      );
-
-      if (availableEncounters.length > 0) {
-        const encounter =
-          availableEncounters[
-            encounterRng.nextInt(0, availableEncounters.length - 1)
-          ];
-        launchEncounter(encounter);
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-function buildWeightedOutcomes(
-  gameModule: GameModule,
-  state: LooseRecord,
-  flags: LooseRecord,
-  location: any,
-): { outcomes: WeightedOutcome[]; sawPityEvent: boolean } {
-  const outcomes: WeightedOutcome[] = [];
-  let sawPityEvent = false;
-  const player = state.player.player;
-  const activeKillQuestEnemies = getActiveKillQuestEnemies(gameModule, state, flags);
-  const lastEvent = state.location?.currentLocationLastEvent;
-  const lastEventCount = state.location?.currentLocationLastEventCount ?? 0;
-  const pityProgress = Number(flags.globalSpecialEventPity ?? 0);
-  const pityProgressMultiplier = Math.min(1 + pityProgress * 0.1, 5);
-  const playerName = `${player.forename} ${player.surname}`;
-
-  for (let index = 0; index < (location.events ?? []).length; index += 1) {
-    const event = location.events[index];
-
-    if (!evaluateCondition(gameModule, event.condition, flags)) {
-      continue;
-    }
-
-    if (event.cooldown) {
-      const cooldownEnd = Number(flags[event.cooldown.key] ?? 0);
-
-      if (Number(flags.month ?? 0) < cooldownEnd) {
-        continue;
-      }
-    }
-
-    let weight = getRarityWeight(event.rarity);
-
-    if (event.pity) {
-      sawPityEvent = true;
-      weight = Math.max(1, Math.ceil(weight * FIXED_PITY_MULTIPLIER));
-      weight = Math.ceil(weight * pityProgressMultiplier);
-    }
-
-    if (index === lastEvent) {
-      weight -= lastEventCount;
-    }
-
-    for (let count = 0; count < weight; count += 1) {
-      outcomes.push({ index, event });
-    }
-  }
-
-  for (let index = 0; index < (location.enemies ?? []).length; index += 1) {
-    const enemy = location.enemies[index];
-
-    if (!evaluateCondition(gameModule, enemy.condition, flags)) {
-      continue;
-    }
-
-    const combatEvent = window.modAPI?.utils?.createCombatEvent?.(enemy);
-
-    if (!combatEvent) {
-      continue;
-    }
-
-    let weight = getRarityWeight(combatEvent.rarity);
-
-    if (activeKillQuestEnemies.has(enemy.enemy?.name)) {
-      weight = Math.ceil(weight * 1.5);
-    }
-
-    const outcomeIndex = index + 100;
-
-    if (outcomeIndex === lastEvent) {
-      weight -= lastEventCount;
-    }
-
-    if ((location.enemies ?? []).length === 1) {
-      weight = 1;
-    }
-
-    for (let count = 0; count < weight; count += 1) {
-      outcomes.push({ index: outcomeIndex, event: combatEvent });
-    }
-  }
-
-  void playerName;
-
-  return { outcomes, sawPityEvent };
-}
-
-function handleExploreClick(
-  dispatch: StoreLike['dispatch'],
-  gameModule: GameModule,
-  state: LooseRecord,
-): boolean {
-  const player = state.player?.player;
-  const locationName = state.location?.current;
-  const location = locationName ? gameModule.ba?.[locationName] : undefined;
-
-  if (!player || !locationName || !location) {
-    return false;
-  }
-
-  if (state.gameEvent?.gameEvent) {
-    return false;
-  }
-
-  const flags = buildFlagsSnapshot(gameModule, state);
-  const visitedLocations = new Set<string>(state.location?.visited ?? []);
-  const explorationCount = state.gameData?.mapExploration?.[locationName] ?? 0;
-  const explorationAmount = getExplorationAmount(player);
-
-  dispatch(gameModule.aC(1));
-
-  const explorationEvent = (location.explorationEvent ?? []).find((entry: any) =>
-    Boolean(gameModule.bn(entry.condition, flags)),
-  );
-
-  if (explorationEvent) {
-    startEvent(dispatch, gameModule, player, {
-      location: locationName,
-      steps: explorationEvent.event,
-    });
-    return true;
-  }
-
-  const unlocks = (location.unlocks ?? [])
-    .filter((unlock: any) => !visitedLocations.has(unlock.location.name))
-    .filter(
-      (unlock: any) =>
-        !unlock.condition || evaluateCondition(gameModule, unlock.condition, flags),
-    )
-    .filter((unlock: any) => Boolean(unlock.exploration))
-    .sort((left: any, right: any) => left.exploration - right.exploration);
-
-  if (
-    unlocks.length > 0 &&
-    explorationCount >=
-      (location.explorationCountOverride ?? DEFAULT_UNLOCK_EXPLORATION_COUNT)
-  ) {
-    const unlock = unlocks[0];
-
-    dispatch({ type: 'gameData/resetExploration', payload: locationName });
-    dispatch(
-      gameModule.a7({
-        flag: gameModule.aW(location, unlock),
-        value: 1,
-      }),
-    );
-    startEvent(dispatch, gameModule, player, {
-      location: locationName,
-      steps: unlock.event,
-    });
-    return true;
-  }
-
-  if (
-    maybeStartCharacterEncounter(
-      dispatch,
-      gameModule,
-      state,
-      flags,
-      locationName,
-    )
-  ) {
-    dispatch(
-      gameModule.aV({
-        location: locationName,
-        amount: explorationAmount,
-      }),
-    );
-    return true;
-  }
-
-  const { outcomes, sawPityEvent } = buildWeightedOutcomes(
-    gameModule,
-    state,
-    flags,
-    location,
-  );
-
-  if (outcomes.length === 0) {
-    log('No valid exploration outcomes were generated');
-    return false;
-  }
-
-  if (!explorationRng) {
-    explorationRng = new gameModule.B();
-  }
-
-  const chosen =
-    outcomes[explorationRng.nextInt(0, outcomes.length - 1)];
-  const pityProgress = Number(flags.globalSpecialEventPity ?? 0);
-
-  if (chosen.event.pity) {
-    dispatch(gameModule.a7({ flag: 'globalSpecialEventPity', value: 0 }));
-  } else if (sawPityEvent) {
-    dispatch(
-      gameModule.a7({
-        flag: 'globalSpecialEventPity',
-        value: pityProgress + 1,
-      }),
-    );
-  }
-
-  if (chosen.event.cooldown) {
-    const cooldownMonths = explorationRng.nextInt(
-      chosen.event.cooldown.min,
-      chosen.event.cooldown.max,
-    );
-
-    dispatch(
-      gameModule.a7({
-        flag: chosen.event.cooldown.key,
-        value: Number(flags.month ?? 0) + cooldownMonths,
-      }),
-    );
-  }
-
-  dispatch({
-    type: 'location/markCurrentLocationEvent',
-    payload: chosen.index,
-  });
-  dispatch(
-    gameModule.aV({
-      location: locationName,
-      amount: explorationAmount,
-    }),
-  );
-  startEvent(dispatch, gameModule, player, {
-    location: locationName,
-    steps: chosen.event.event,
-  });
-  return true;
-}
-
-async function onDocumentClick(event: MouseEvent) {
-  const button = getExploreButton(event.target);
-
-  if (!button) {
-    return;
-  }
-
-  if (allowNextNativeExploreClick) {
-    allowNextNativeExploreClick = false;
-    return;
-  }
-
+  preferredFlags?: LooseRecord,
+): {
+  diagnostics: LooseRecord;
+  context: ExplorePatchContext | null;
+} {
   const store = getStore();
 
   if (!store) {
-    return;
+    return {
+      diagnostics: {
+        ready: false,
+        reason: 'game store unavailable',
+      },
+      context: null,
+    };
   }
 
   const state = store.getState();
+  const player = state.player?.player;
+  const location = locationName ? capturedLocations[locationName] : undefined;
 
-  if (!state?.location?.current || state?.gameEvent?.gameEvent) {
-    return;
+  if (!player || !locationName || !location) {
+    return {
+      diagnostics: {
+        ready: false,
+        reason: 'missing player or location',
+        location: locationName ?? null,
+      },
+      context: null,
+    };
   }
 
-  event.preventDefault();
-  event.stopImmediatePropagation();
+  const config = getRuntimeConfig();
+  const playerName = getPlayerName(player);
+  const pityProgress = getPityProgress(state, preferredFlags);
+  const pityProgressMultiplier = Math.min(1 + pityProgress * 0.1, 5);
+  const isCurrentLocation = state.location?.current === locationName;
+  const lastEventIndex =
+    isCurrentLocation && typeof state.location?.currentLocationLastEvent === 'number'
+      ? state.location.currentLocationLastEvent
+      : null;
+  const lastEventCount = isCurrentLocation
+    ? Number(state.location?.currentLocationLastEventCount ?? 0)
+    : 0;
+  const adjustments = (location.events ?? [])
+    .map((event: any, index: number) =>
+      buildPityAdjustment(event, index, {
+        config,
+        playerName,
+        pityProgressMultiplier,
+        lastEventIndex,
+        lastEventCount,
+      }),
+    )
+    .filter((value: PityAdjustment | null): value is PityAdjustment => Boolean(value));
+  const adjustmentsByKey = new Map<string, PityAdjustment>(
+    adjustments.map((adjustment) => [
+      `${adjustment.index}:${adjustment.condition ?? ''}`,
+      adjustment,
+    ]),
+  );
 
-  try {
-    const gameModule = await getGameModule();
-    const handled = handleExploreClick(store.dispatch, gameModule, state);
-
-    if (!handled) {
-      allowNextNativeExploreClick = true;
-      queueMicrotask(() => {
-        button.click();
-      });
-    }
-  } catch (error) {
-    console.error(MOD_TAG, 'Custom explore handler failed, falling back to native click', error);
-    allowNextNativeExploreClick = true;
-    queueMicrotask(() => {
-      button.click();
-    });
-  }
+  return {
+    diagnostics: {
+      ready: true,
+      config,
+      configDescription: describeConfig(config),
+      playerName,
+      currentLocationName: state.location?.current ?? null,
+      locationName,
+      pityProgress,
+      pityProgressMultiplier,
+      lastEventIndex,
+      lastEventCount,
+      adjustmentCount: adjustments.length,
+      adjustments,
+    },
+    context: {
+      startedAt: new Date().toISOString(),
+      playerName,
+      locationName,
+      pityProgress,
+      pityProgressMultiplier,
+      lastEventIndex,
+      lastEventCount,
+      config,
+      adjustments,
+      adjustmentsByKey,
+      pushTrackingByKey: new Map(),
+    },
+  };
 }
 
-function install() {
-  if (window.__luckyAllAroundX6Installed) {
+function buildCurrentLocationAdjustments(
+  button: HTMLButtonElement,
+): {
+  diagnostics: LooseRecord;
+  context: ExplorePatchContext | null;
+} {
+  const store = getStore();
+
+  if (!store) {
+    return {
+      diagnostics: {
+        ready: false,
+        reason: 'game store unavailable',
+      },
+      context: null,
+    };
+  }
+
+  const locationName = store.getState().location?.current;
+
+  if (!locationName) {
+    return {
+      diagnostics: {
+        ready: false,
+        reason: 'missing current location',
+      },
+      context: null,
+    };
+  }
+
+  return buildLocationAdjustments(locationName, getFlagsFromButton(button));
+}
+
+function finalizeExplorePatch(context: ExplorePatchContext) {
+  if (activeExplorePatch !== context) {
     return;
   }
 
-  window.__luckyAllAroundX6Installed = true;
-  void getGameModule().catch((error) => {
-    console.error(MOD_TAG, 'Unable to preload Game.js runtime module', error);
+  activeExplorePatch = null;
+  Array.prototype.push = originalArrayPush;
+  setLastExploreDiagnostics({
+    status: 'completed',
+    config: context.config,
+    playerName: context.playerName,
+    locationName: context.locationName,
+    pityProgress: context.pityProgress,
+    pityProgressMultiplier: context.pityProgressMultiplier,
+    adjustments: context.adjustments.map((adjustment) => {
+      const key = `${adjustment.index}:${adjustment.condition ?? ''}`;
+      const tracking = context.pushTrackingByKey.get(key);
+
+      return {
+        ...adjustment,
+        observedNativePushes: tracking?.nativeSeen ?? 0,
+        observedAdjustedPushes: tracking?.adjustedPushed ?? 0,
+      };
+    }),
   });
-  document.addEventListener('click', (event) => {
-    void onDocumentClick(event);
-  }, true);
-  log('Installed explore luck override');
 }
 
-install();
+function beginExplorePatch(context: ExplorePatchContext) {
+  if (activeExplorePatch) {
+    return;
+  }
+
+  activeExplorePatch = context;
+  Array.prototype.push = patchedArrayPush;
+  queueMicrotask(() => finalizeExplorePatch(context));
+  setTimeout(() => finalizeExplorePatch(context), 0);
+}
+
+function buildAdjustedPushItems(
+  context: ExplorePatchContext,
+  value: any,
+): any[] {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    typeof value.index !== 'number' ||
+    !value.event ||
+    !value.event.pity
+  ) {
+    return [value];
+  }
+
+  const key = `${value.index}:${String(value.event.condition ?? '')}`;
+  const adjustment = context.adjustmentsByKey.get(key);
+
+  if (!adjustment) {
+    return [value];
+  }
+
+  let tracking = context.pushTrackingByKey.get(key);
+
+  if (!tracking) {
+    tracking = {
+      nativeSeen: 0,
+      adjustedPushed: 0,
+    };
+    context.pushTrackingByKey.set(key, tracking);
+  }
+
+  tracking.nativeSeen += 1;
+
+  if (adjustment.adjustedCount <= adjustment.nativeCount) {
+    if (tracking.nativeSeen > adjustment.adjustedCount) {
+      return [];
+    }
+
+    tracking.adjustedPushed += 1;
+    return [value];
+  }
+
+  if (tracking.nativeSeen === 1) {
+    const extraCopies = adjustment.adjustedCount - adjustment.nativeCount;
+    const copies = [value, ...Array.from({ length: extraCopies }, () => value)];
+    tracking.adjustedPushed += copies.length;
+    return copies;
+  }
+
+  tracking.adjustedPushed += 1;
+  return [value];
+}
+
+function patchedArrayPush(this: any[], ...values: any[]): number {
+  const context = activeExplorePatch;
+
+  if (!context) {
+    return originalArrayPush.apply(this, values);
+  }
+
+  const adjustedValues = values.flatMap((value) =>
+    buildAdjustedPushItems(context, value),
+  );
+
+  if (adjustedValues.length === 0) {
+    return this.length;
+  }
+
+  return originalArrayPush.apply(this, adjustedValues);
+}
+
+function inspectCurrentExplore(): LooseRecord {
+  const button = Array.from(document.querySelectorAll('button')).find((candidate) => {
+    const label = candidate.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+    return label.startsWith(EXPLORE_PREFIX);
+  });
+
+  if (!(button instanceof HTMLButtonElement)) {
+    return {
+      ready: false,
+      reason: 'explore button not found',
+    };
+  }
+
+  return buildCurrentLocationAdjustments(button).diagnostics;
+}
+
+function inspectLocation(locationName?: string): LooseRecord {
+  const store = getStore();
+
+  if (!store) {
+    return {
+      ready: false,
+      reason: 'game store unavailable',
+    };
+  }
+
+  const inspectedLocationName = locationName ?? store.getState().location?.current;
+
+  if (!inspectedLocationName) {
+    return {
+      ready: false,
+      reason: 'location not provided',
+    };
+  }
+
+  return buildLocationAdjustments(inspectedLocationName).diagnostics;
+}
+
+function createTextElement(
+  createElement: (...args: any[]) => any,
+  tagName: string,
+  key: string,
+  text: string,
+  style?: LooseRecord,
+) {
+  return createElement(tagName, { key, style }, text);
+}
+
+function LuckyAllAroundOptions({ api }: { api: LooseRecord }) {
+  const ReactRuntime = window.React;
+
+  if (
+    !ReactRuntime?.createElement ||
+    !ReactRuntime.useEffect ||
+    !ReactRuntime.useState
+  ) {
+    throw new Error('React runtime unavailable for options UI');
+  }
+
+  const createElement = ReactRuntime.createElement.bind(ReactRuntime);
+  const [config, setConfig] = ReactRuntime.useState<RuntimeConfig>(getRuntimeConfig());
+  const GameButton = api?.components?.GameButton ?? 'button';
+
+  ReactRuntime.useEffect(() => {
+    setConfig(getRuntimeConfig());
+  }, []);
+
+  const applyConfig = (partialConfig: Partial<RuntimeConfig>) => {
+    const nextConfig = updateRuntimeConfig(partialConfig);
+    setConfig(nextConfig);
+  };
+  const isForceMode = config.mode === 'force';
+  const summaryText = `Saved globally. Current behavior: ${describeConfig(config)}.`;
+  const forceLabel = isForceMode
+    ? `Force ${config.multiplier}x Selected`
+    : `Use Force ${config.multiplier}x`;
+  const neverWorseLabel = isForceMode
+    ? `Use Never Worse ${config.multiplier}x`
+    : `Never Worse ${config.multiplier}x Selected`;
+  const modeDescription = isForceMode
+    ? `Force mode replaces the vanilla tier for every pity event. Native 8x and 10x tiers can be reduced to ${config.multiplier}x.`
+    : `Never Worse mode keeps higher vanilla tiers and only raises lower tiers up to at least ${config.multiplier}x.`;
+
+  return createElement(
+    'div',
+    {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '14px',
+        padding: '8px 4px 4px',
+      },
+    },
+    [
+      createTextElement(
+        createElement,
+        'div',
+        'intro',
+        'Configure how pity-exclusive events are weighted.',
+        {
+          lineHeight: 1.45,
+          opacity: 0.9,
+        },
+      ),
+      createElement(
+        'div',
+        {
+          key: 'mode',
+          style: {
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+          },
+        },
+        [
+          createTextElement(
+            createElement,
+            'div',
+            'modeLabel',
+            'Mode',
+            {
+              fontWeight: 600,
+            },
+          ),
+          createElement(
+            'div',
+            {
+              key: 'modeButtons',
+              style: {
+                display: 'flex',
+                gap: '12px',
+              },
+            },
+            [
+              createElement(
+                GameButton,
+                {
+                  key: 'force',
+                  onClick: () => applyConfig({ mode: 'force' }),
+                },
+                forceLabel,
+              ),
+              createElement(
+                GameButton,
+                {
+                  key: 'neverWorse',
+                  onClick: () => applyConfig({ mode: 'neverWorse' }),
+                },
+                neverWorseLabel,
+              ),
+            ],
+          ),
+        ],
+      ),
+      createElement(
+        'label',
+        {
+          key: 'slider',
+          style: {
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+          },
+        },
+        [
+          createTextElement(
+            createElement,
+            'div',
+            'sliderLabel',
+            `Luck multiplier: ${config.multiplier}x`,
+            {
+              fontWeight: 600,
+            },
+          ),
+          createElement('input', {
+            key: 'sliderInput',
+            type: 'range',
+            min: MIN_PITY_MULTIPLIER,
+            max: MAX_PITY_MULTIPLIER,
+            step: 1,
+            value: config.multiplier,
+            onChange: (event: Event) => {
+              const target = event.target as HTMLInputElement | null;
+              applyConfig({ multiplier: target?.value });
+            },
+            style: {
+              width: '100%',
+            },
+          }),
+          createElement(
+            'div',
+            {
+              key: 'sliderMarks',
+              style: {
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontSize: '0.85rem',
+                opacity: 0.75,
+              },
+            },
+            [
+              createTextElement(createElement, 'span', 'mark1', '1x'),
+              createTextElement(createElement, 'span', 'mark6', '6x'),
+              createTextElement(createElement, 'span', 'mark10', '10x'),
+            ],
+          ),
+        ],
+      ),
+      createTextElement(
+        createElement,
+        'div',
+        'modeDescription',
+        modeDescription,
+        {
+          lineHeight: 1.45,
+          opacity: 0.85,
+        },
+      ),
+      createTextElement(
+        createElement,
+        'div',
+        'summary',
+        summaryText,
+        {
+          padding: '10px 12px',
+          border: '1px solid rgba(212, 175, 55, 0.35)',
+          borderRadius: '6px',
+          background: 'rgba(0, 0, 0, 0.15)',
+          lineHeight: 1.45,
+        },
+      ),
+    ],
+  );
+}
+
+function installExploreInterceptor() {
+  document.addEventListener(
+    'click',
+    (event) => {
+      const button = getExploreButton(event.target);
+
+      if (!button) {
+        return;
+      }
+
+      const { diagnostics, context } = buildCurrentLocationAdjustments(button);
+      setLastExploreDiagnostics({
+        status: context ? 'armed' : 'skipped',
+        ...diagnostics,
+      });
+
+      if (!context) {
+        return;
+      }
+
+      beginExplorePatch(context);
+    },
+    true,
+  );
+}
+
+function installOptionsUi() {
+  window.modAPI?.actions?.registerOptionsUI?.(LuckyAllAroundOptions);
+}
+
+function installDebugApi() {
+  const debugApi = {
+    getVersion: () => MOD_METADATA.version,
+    isInstalled: () => true,
+    getConfig: () => cloneForDebug(getRuntimeConfig()),
+    getLastExplore: () => cloneForDebug(lastExploreDiagnostics),
+    inspectCurrentExplore: () => cloneForDebug(inspectCurrentExplore()),
+    inspectLocation: (locationName?: string) =>
+      cloneForDebug(inspectLocation(locationName)),
+  };
+
+  window.luckyAllAroundDebug = debugApi;
+  window.luckyAllAroundX6Debug = debugApi;
+}
+
+if (!window.__luckyAllAroundInstalled && !window.__luckyAllAroundX6Installed) {
+  window.__luckyAllAroundInstalled = true;
+  window.__luckyAllAroundX6Installed = true;
+  installExploreInterceptor();
+  installOptionsUi();
+  installDebugApi();
+  setLastExploreDiagnostics({
+    status: 'installed',
+    config: getRuntimeConfig(),
+    capturedLocationCount: Object.keys(capturedLocations).length,
+    pityConditionCount: allPityConditions.length,
+  });
+  log(
+    'Installed native explore candidate patch',
+    JSON.stringify({
+      capturedLocationCount: Object.keys(capturedLocations).length,
+      pityConditionCount: allPityConditions.length,
+      config: getRuntimeConfig(),
+    }),
+  );
+} else {
+  log('Patch already installed');
+}

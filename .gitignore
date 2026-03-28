@@ -1,6 +1,9 @@
 node_modules/
 dist/
 builds/
+mods/
+tmp/
+settings.json
 *.log
 .vera/
 .agent/

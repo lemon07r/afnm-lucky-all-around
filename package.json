@@ -1,18 +1,33 @@
 {
-  "name": "afnm-lucky-all-around-x6",
-  "version": "1.0.0",
-  "description": "Sets every pity event luck weighting to 6x in Ascend From Nine Mountains",
+  "name": "afnm-lucky-all-around",
+  "version": "1.0.1",
+  "description": "Configurable pity-event luck weighting for Ascend From Nine Mountains",
   "author": {
     "name": "lamim"
   },
-  "gameVersion": "0.6.46-a4ebf2c",
+  "gameVersion": "0.6.47-d230b90",
+  "afnmWorkshop": {
+    "workshopId": "3694065051",
+    "title": "Lucky All Around",
+    "description": "Configurable pity-event luck weighting with force and never-worse modes.",
+    "tags": [
+      "Gameplay",
+      "Balance"
+    ],
+    "visibility": "private"
+  },
   "main": "mod.js",
   "scripts": {
-    "prebuild": "rm -rf dist/afnm-lucky-all-around-x6",
-    "build": "bun run webpack --mode development",
-    "postbuild": "bun scripts/zip-dist.js"
+    "prebuild": "rm -rf dist/afnm-lucky-all-around",
+    "build": "node scripts/build-mod.js",
+    "postbuild": "bun scripts/zip-dist.js",
+    "workshop:upload": "bun run scripts/workshop-upload.ts",
+    "runtime:oracle": "node scripts/installed-game-runtime.js summary",
+    "runtime:extract": "node scripts/installed-game-runtime.js extract",
+    "runtime:grep": "node scripts/installed-game-runtime.js grep"
   },
   "devDependencies": {
+    "afnm-types": "0.6.47",
     "ts-loader": "^9.5.4",
     "typescript": "^5.9.3",
     "webpack": "^5.105.3",
