@@ -1,0 +1,22 @@
+{
+  "name": "afnm-lucky-all-around-x6",
+  "version": "1.0.0",
+  "description": "Sets every pity event luck weighting to 6x in Ascend From Nine Mountains",
+  "author": {
+    "name": "lamim"
+  },
+  "gameVersion": "0.6.46-a4ebf2c",
+  "main": "mod.js",
+  "scripts": {
+    "prebuild": "rm -rf dist/afnm-lucky-all-around-x6",
+    "build": "bun run webpack --mode development",
+    "postbuild": "bun scripts/zip-dist.js"
+  },
+  "devDependencies": {
+    "ts-loader": "^9.5.4",
+    "typescript": "^5.9.3",
+    "webpack": "^5.105.3",
+    "webpack-cli": "^6.0.1",
+    "zip-a-folder": "^4.0.4"
+  }
+}

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+builds/
+*.log
+.vera/
+.agent/
+.agents/
+.claude/
+.factory/
+.junie/
