@@ -8,6 +8,7 @@ Release snapshot: `2026-04-06`
    - `bun run build`
    - `bun run runtime:oracle`
    - confirm the current inspector flow in `docs/VALIDATION.md`
+   - if you will do a manual native-client pass, copy the freshly built zip into the installed game's `mods/` directory first so the live client is not testing a stale local build
    - if you did a manual native-client pass, make sure the Mod Manager `CONTINUE` apply step succeeded before loading the save
 3. Upload the built zip to Steam Workshop from this repo:
    - update an existing item: `bun run workshop:upload -- --change-note "vX.Y.Z - What changed"`

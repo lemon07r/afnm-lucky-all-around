@@ -51,6 +51,8 @@ When docs, types, and live behavior disagree, prefer the installed runtime.
    /home/lamim/.local/share/Steam/steamapps/common/Ascend From Nine Mountains/mods/
    ```
 
+4. If the live client still reports an older Lucky All Around version after a rebuild, remove the older local zip from the installed `mods/` directory and copy the new one again before relaunching.
+
 ## Optional Manual Live UI Verification
 
 Live UI launch is manual and opt-in only.
@@ -100,6 +102,28 @@ Evidence captured against the native non-Steam launcher:
   - `locationName: "Crossroads"`
 
 Crossroads itself is not a useful pity-adjustment target for this save because its current candidate pool reports `adjustmentCount: 0`. Use the live debug inspector to choose a pity location before treating a manual UI pass as multiplier-behavior validation.
+
+Second live pass on the same save:
+
+- the game state was restored to pre-explore `Bone Pile`
+- `window.luckyAllAroundDebug.inspectLocation('Bone Pile')` reported one real pity adjustment:
+  - `condition: "fallenSoulflameRetrieved == 0"`
+  - `vanillaMultiplier: 4`
+  - `configuredMultiplier: 6`
+  - `appliedMultiplier: 6`
+  - `nativeCount: 20`
+  - `adjustedCount: 30`
+  - `delta: 10`
+- a real `EXPLORE (1 DAY)` click completed without a crash on retry
+- the event screen opened on the Fallen Soulflame event text
+- `window.luckyAllAroundDebug.getLastExplore()` then recorded:
+  - `status: "completed"`
+  - `trigger: "onGenerateExploreEvents"`
+  - `locationName: "Bone Pile"`
+  - `observedNativePushes: 20`
+  - `observedAdjustedPushes: 30`
+
+This is the current end-to-end proof point for live pity-weight behavior on the `2026-04-06` Han Yu save.
 
 ## In-Game Settings
 
