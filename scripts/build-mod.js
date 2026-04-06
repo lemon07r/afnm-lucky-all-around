@@ -1,27 +1,19 @@
 const fs = require('fs');
 const path = require('path');
 const ts = require('typescript');
-const packageJson = require('../package.json');
+const { packageJson, buildModMetadata } = require('./mod-package');
 
 const rootDir = path.resolve(__dirname, '..');
 const sourcePath = path.resolve(rootDir, 'src/modContent/index.ts');
 const outputDir = path.resolve(rootDir, 'dist', packageJson.name);
 const outputPath = path.resolve(outputDir, 'mod.js');
 
-const metadata = {
-  name: packageJson.name,
-  version: packageJson.version,
-  author: packageJson.author,
-  description: packageJson.description,
-  gameVersion: packageJson.gameVersion,
-};
-
 function compileModContent() {
   const source = fs.readFileSync(sourcePath, 'utf8');
   const result = ts.transpileModule(source, {
     compilerOptions: {
       target: ts.ScriptTarget.ES2020,
-      module: ts.ModuleKind.None,
+      module: ts.ModuleKind.ES2020,
       removeComments: false,
       sourceMap: false,
       inlineSourceMap: false,
@@ -44,11 +36,22 @@ function compileModContent() {
     throw new Error(`TypeScript transpile diagnostics:\n${formatted}`);
   }
 
-  return result.outputText.trim();
+  const sanitizedOutput = result.outputText
+    .replace(/^\s*export\s*\{\s*\};?\s*$/gm, '')
+    .trim();
+
+  const unexpectedModuleSyntax = sanitizedOutput.match(/^\s*(?:export|import)\s/m);
+  if (unexpectedModuleSyntax) {
+    throw new Error(
+      `Browser bundle still contains module syntax: ${unexpectedModuleSyntax[0].trim()}`,
+    );
+  }
+
+  return sanitizedOutput;
 }
 
 function buildUmdBundle(modContentCode) {
-  const serializedMetadata = JSON.stringify(metadata);
+  const serializedMetadata = JSON.stringify(buildModMetadata());
 
   return `(function webpackUniversalModuleDefinition(root, factory) {
 \tif(typeof exports === 'object' && typeof module === 'object')

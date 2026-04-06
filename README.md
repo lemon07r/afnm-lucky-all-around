@@ -1,10 +1,10 @@
 # Lucky All Around
 
-AFNM mod that rewrites pity-event exclusivity weighting with an adjustable global setting. The default installed behavior is still `force 6x`.
+AFNM mod that rewrites Explore pity-event exclusivity weighting with a global configurable setting. The default installed behavior is still `force 6x`.
 
 ## Settings
 
-Open the mod's settings button from the game's mod loading dialog to configure:
+Open the mod settings button from the game's mod loading dialog to configure:
 
 - `Mode`
   - `Force`: replace every pity-event tier with the selected multiplier.
@@ -18,12 +18,24 @@ Open the mod's settings button from the game's mod loading dialog to configure:
 
 ```bash
 bun install
+bun run typecheck
 bun run build
 ```
 
 The packaged mod zip is written to `builds/afnm-lucky-all-around.zip`.
 
+Build metadata now resolves `gameVersion` from the installed `afnm-types` package instead of duplicating that value across multiple scripts.
+
 ## Validation
+
+Default validation path:
+
+```bash
+bun run typecheck
+bun run build
+bun run runtime:oracle
+bun run runtime:grep -- "onGenerateExploreEvents|getGameStateSnapshot|globalSpecialEventPity|currentLocationLastEvent"
+```
 
 Use the live debug helper after the mod loads:
 
@@ -31,9 +43,10 @@ Use the live debug helper after the mod loads:
 window.luckyAllAroundDebug.getConfig()
 window.luckyAllAroundDebug.inspectLocation('Bone Pile')
 window.luckyAllAroundDebug.inspectCurrentExplore()
+window.luckyAllAroundDebug.getLastExplore()
 ```
 
-The inspector reports vanilla multiplier, configured multiplier, applied multiplier, native candidate count, adjusted candidate count, and delta for each pity event. See `docs/VALIDATION.md` for the real-game workflow.
+The inspector reports vanilla multiplier, configured multiplier, applied multiplier, native candidate count, adjusted candidate count, and delta for each pity event. See `docs/VALIDATION.md` for the real-game workflow and `docs/MODAPI_REFRESH.md` for the `0.6.49` ModAPI audit.
 
 ## Local Workshop Publish
 
@@ -51,18 +64,10 @@ bun run workshop:upload -- --change-note "vX.Y.Z - Initial release" --allow-crea
 
 Steam must be running locally, and the sibling uploader repo must exist at `../ModUploader-AFNM`.
 
-## Runtime Parity Helpers
+## Runtime Notes
 
-```bash
-bun run runtime:oracle
-bun run runtime:extract
-bun run runtime:grep -- "window\\.gameStore|globalSpecialEventPity|pity"
-```
-
-## Notes
-
-- Targets AFNM `0.6.47-d230b90`.
-- The runtime patch leaves the native explore handler intact and rewrites pity-event candidate counts in-flight based on the saved global config.
-- The only confirmed player-name-seeded gameplay weighting found in the shipped bundle is the `Explore` pity-event exclusivity assignment. Adjacent deterministic systems are documented in `docs/LUCK_AUDIT.md`.
-- Settings are stored through `window.modAPI.actions.setGlobalFlag(...)`, so they apply across saves.
+- Refreshed on `2026-04-04` against installed AFNM runtime `0.6.49-727424c`, `afnm-types` `0.6.49`, and upstream example/docs commit `61d0099`.
+- The mod now uses `window.modAPI.hooks.onGenerateExploreEvents(...)` to arm the patch and `window.modAPI.getGameStateSnapshot()` for runtime state reads.
+- The only retained monkeypatch is the weighted candidate-slot rewrite, because the shipped `0.6.49` Explore hook still runs before the game's final weighted `{ index, event }` pool is built.
+- The only confirmed player-name-seeded gameplay weighting found in the shipped bundle remains the `Explore` pity-event exclusivity assignment. Adjacent deterministic systems are documented in `docs/LUCK_AUDIT.md`.
 - Release and workshop order is documented in `docs/RELEASE_PROCESS.md`.

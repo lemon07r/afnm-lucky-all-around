@@ -5,7 +5,7 @@
     "": {
       "name": "afnm-lucky-all-around",
       "devDependencies": {
-        "afnm-types": "0.6.47",
+        "afnm-types": "0.6.49",
         "ts-loader": "^9.5.4",
         "typescript": "^5.9.3",
         "webpack": "^5.105.3",
@@ -125,7 +125,7 @@
 
     "acorn-import-phases": ["acorn-import-phases@1.0.4", "", { "peerDependencies": { "acorn": "^8.14.0" } }, "sha512-wKmbr/DDiIXzEOiWrTTUcDm24kQ2vGfZQvM2fwg2vXqR5uW6aapr7ObPtj1th32b9u90/Pf4AItvdTh42fBmVQ=="],
 
-    "afnm-types": ["afnm-types@0.6.47", "", { "peerDependencies": { "@mui/icons-material": "^7.3.9", "@mui/material": "^7.3.9" } }, "sha512-Kx85WRuZymINcg1ceHTPBlA7QqfEX38FCL1zskW/X7Blg/Jtj1LDRf67CHm2/EXhbBfB1PO3y1dPBal86DVAug=="],
+    "afnm-types": ["afnm-types@0.6.49", "", { "peerDependencies": { "@mui/icons-material": "^7.3.9", "@mui/material": "^7.3.9" } }, "sha512-vBGlN552MXbgbZd8Rho3T8lGeiCjhXyzV4AtHOAIOjVjRDGPZCztIpnJczn04Q0tGz4OJF+WQNfHv4o1bgz9Ig=="],
 
     "ajv": ["ajv@8.18.0", "", { "dependencies": { "fast-deep-equal": "^3.1.3", "fast-uri": "^3.0.1", "json-schema-traverse": "^1.0.0", "require-from-string": "^2.0.2" } }, "sha512-PlXPeEWMXMZ7sPYOHqmDyCJzcfNrUr3fGNKtezX14ykXOEIvyK81d+qydx89KY5O71FKMPaQ2vBfBFI5NHR63A=="],
 

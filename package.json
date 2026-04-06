@@ -1,24 +1,26 @@
 {
   "name": "afnm-lucky-all-around",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Configurable pity-event luck weighting for Ascend From Nine Mountains",
   "author": {
     "name": "lamim"
   },
-  "gameVersion": "0.6.47-d230b90",
+  "gameVersion": "0.6.49",
   "afnmWorkshop": {
     "workshopId": "3694065051",
     "title": "Lucky All Around",
-    "description": "Configurable pity-event luck weighting with force and never-worse modes.",
+    "description": "Lucky All Around lets you control the hidden luck multiplier used for Explore pity events.\n\nWhat this mod does:\n- Adds a global setting for pity-event luck from 1x to 10x\n- Lets you choose between Force mode and Never Worse mode\n- Applies the chosen setting across all saves\n\nModes:\n- Force: every pity event uses exactly the multiplier you choose\n- Never Worse: lower vanilla tiers are raised up to your chosen multiplier, but higher vanilla tiers are kept\n\nExample:\n- Force 6x makes every pity tier 6x, which can lower native 8x and 10x tiers\n- Never Worse 6x behaves like a 6x floor instead\n\nImportant notes:\n- This changes Explore pity-event weighting only\n- It does not rewrite unrelated luck systems\n- It changes weighting, not guaranteed outcomes\n\nOpen the mod settings from the game's mod loading screen to adjust the mode and multiplier.",
     "tags": [
       "Gameplay",
       "Balance"
     ],
-    "visibility": "private"
+    "visibility": "private",
+    "previewImagePath": "lucky-afnm-thumb.jpg"
   },
   "main": "mod.js",
   "scripts": {
     "prebuild": "rm -rf dist/afnm-lucky-all-around",
+    "typecheck": "tsc --noEmit",
     "build": "node scripts/build-mod.js",
     "postbuild": "bun scripts/zip-dist.js",
     "workshop:upload": "bun run scripts/workshop-upload.ts",
@@ -27,7 +29,7 @@
     "runtime:grep": "node scripts/installed-game-runtime.js grep"
   },
   "devDependencies": {
-    "afnm-types": "0.6.47",
+    "afnm-types": "0.6.49",
     "ts-loader": "^9.5.4",
     "typescript": "^5.9.3",
     "webpack": "^5.105.3",

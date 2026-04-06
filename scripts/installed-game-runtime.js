@@ -95,9 +95,15 @@ function extractSummary(extractDir, gameDir, asarPath) {
     },
     modApi: {
       hasGameStoreExposure: gameJs.includes('window.gameStore'),
-      hasQuestData: gameJs.includes('quests:vr'),
       hasCreateCombatEvent: gameJs.includes('createCombatEvent'),
       hasEvalExp: gameJs.includes('evalExp'),
+      hasRegisterOptionsUI: gameJs.includes('registerOptionsUI'),
+      hasGenerateExploreEventsHook: gameJs.includes('onGenerateExploreEvents'),
+      hasLocationEnterHook: gameJs.includes('onLocationEnter'),
+      hasReduxActionHook: gameJs.includes('onReduxAction'),
+      hasUiInjection: gameJs.includes('injectUI'),
+      hasSubscribe: gameJs.includes('subscribe:e=>'),
+      hasStateSnapshot: gameJs.includes('getGameStateSnapshot'),
     },
   };
 }

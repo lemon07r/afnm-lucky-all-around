@@ -1,10 +1,105 @@
 # Validation
 
+Validation snapshot: `2026-04-06`
+
+Default parity target:
+
+- installed runtime `0.6.49-727424c`
+- `afnm-types` `0.6.49`
+
+## Default Validation Flow
+
+For `src/modContent/index.ts` and other runtime-sensitive work, the default validation path is the installed-runtime oracle below, not launching the live UI.
+
+1. Run local checks:
+   - `bun run typecheck`
+   - `bun run build`
+2. Verify the installed runtime surface:
+   - `bun run runtime:oracle`
+   - `bun run runtime:grep -- "onGenerateExploreEvents|getGameStateSnapshot|globalSpecialEventPity|currentLocationLastEvent"`
+3. If you need the extracted bundle path:
+   - `bun run runtime:extract`
+
+This is the preferred path because it validates against the real shipped code without launching Steam or the desktop client.
+
+## Installed Runtime Oracle
+
+`bun run runtime:oracle` now reports:
+
+- installed game version and extracted runtime path
+- Steam restart behavior and `disable_steam` sentinel support
+- ModAPI exposures relevant to this repo:
+  - `registerOptionsUI`
+  - `onGenerateExploreEvents`
+  - `onLocationEnter`
+  - `onReduxAction`
+  - `injectUI`
+  - `subscribe`
+  - `getGameStateSnapshot`
+
+When docs, types, and live behavior disagree, prefer the installed runtime.
+
 ## Build And Install
 
-1. `bun run build`
-2. Copy `builds/afnm-lucky-all-around.zip` into the installed game's `mods/` directory.
-3. Launch the native client from the installed game directory so relative mod resolution still works.
+1. `bun run typecheck`
+2. `bun run build`
+3. Copy `builds/afnm-lucky-all-around.zip` into the installed game's `mods/` directory.
+
+   Default local install path:
+
+   ```text
+   /home/lamim/.local/share/Steam/steamapps/common/Ascend From Nine Mountains/mods/
+   ```
+
+## Optional Manual Live UI Verification
+
+Live UI launch is manual and opt-in only.
+
+Reasons:
+
+- direct app launch is disruptive on the desktop
+- the installed app restarts through Steam by default unless a `disable_steam` sentinel file exists beside the binary
+- default validation for this repo does not need the live UI
+
+If manual launch is explicitly needed later:
+
+1. create an empty `disable_steam` file next to `AscendFromNineMountains`
+2. launch from the installed game directory, not from this repo
+3. use the native launcher:
+
+   ```bash
+   "/home/lamim/.local/share/Steam/steamapps/common/Ascend From Nine Mountains/launch-native.sh"
+   ```
+
+4. keep the working directory outside this repo so the game does not write its own `./settings.json` here
+5. the title-screen Mod Manager does not apply its enabled/disabled state until you press its own `CONTINUE` button
+6. after the Mod Manager apply step completes, use the save-level `CONTINUE` button to load the intended character save
+
+Do not use this path for routine automated validation.
+
+## Latest Manual Live UI Pass
+
+Manual live validation snapshot: `2026-04-06`
+
+Evidence captured against the native non-Steam launcher:
+
+- the game loaded through `launch-native.sh --remote-debugging-port=9222`
+- the title-screen Mod Manager applied the local zip only after its own `CONTINUE` button was pressed
+- the live log then showed:
+  - `Loading mod afnm-lucky-all-around`
+  - `[LuckyAllAround] Installed ModAPI explore hook with weighted candidate patch`
+  - `Mod loaded successfully!`
+- in the live renderer:
+  - `window.luckyAllAroundDebug` existed
+  - `window.__luckyAllAroundInstalled === true`
+  - `window.modAPI.actions.getGlobalFlags()` exposed both legacy and normalized `luckyAllAround*` keys
+- the Han Yu save loaded at `Crossroads`
+- a real `EXPLORE (1 DAY)` click completed successfully and `window.luckyAllAroundDebug.getLastExplore()` recorded:
+  - `status: "completed"`
+  - `trigger: "onGenerateExploreEvents"`
+  - `locationName: "Crossroads"`
+
+Crossroads itself is not a useful pity-adjustment target for this save because its current candidate pool reports `adjustmentCount: 0`. Use the live debug inspector to choose a pity location before treating a manual UI pass as multiplier-behavior validation.
 
 ## In-Game Settings
 
@@ -37,10 +132,13 @@ Important fields:
 - `nativeCount`: vanilla candidate count after pity progression and repeat penalty
 - `adjustedCount`: modded candidate count after the same modifiers
 - `delta`: `adjustedCount - nativeCount`
+- `trigger`: whether the latest arm/complete cycle came through `onGenerateExploreEvents`
 
 ## Real-Game Notes
 
 - `Force 6x` is not a universal buff. It lowers native `8x` and `10x` pity tiers to `6x`.
 - `Never Worse 6x` behaves like a floor and avoids reducing better vanilla tiers.
+- `Ancestral Barrows`, `The Ascent`, `Bifang Crane Corpse`, `Shanlu Foothills`, and `Bone Pile` currently inspect as pity-bearing targets in the live debug helper on the `2026-04-06` Han Yu save.
 - Hand-editing a save's `location.current` is not enough to synthesize a trustworthy `Explore` state. For end-to-end button validation, use a save that already lives in a real combat location with pity events.
 - `Heian Forest` was a bad target in earlier validation because the loaded save had `adjustmentCount: 0` there.
+- As of `2026-04-04`, the shipped Explore hook fires before weighted candidate expansion, so this mod still keeps a narrow weighted-slot patch after the hook arms it.

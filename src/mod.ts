@@ -1,4 +1,5 @@
 import './modContent';
+import { GAME_VERSION } from 'afnm-types';
 
 declare const MOD_METADATA: {
   name: string;
@@ -9,5 +10,8 @@ declare const MOD_METADATA: {
 };
 
 export default {
-  getMetadata: () => MOD_METADATA,
+  getMetadata: () => ({
+    ...MOD_METADATA,
+    gameVersion: GAME_VERSION,
+  }),
 };

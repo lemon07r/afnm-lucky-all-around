@@ -1,6 +1,6 @@
 const path = require('path');
-const packageJson = require('./package.json');
 const webpack = require('webpack');
+const { packageJson, buildModMetadata } = require('./scripts/mod-package');
 
 const isProduction =
   process.env.NODE_ENV === 'production' ||
@@ -49,13 +49,7 @@ module.exports = {
   },
   plugins: [
     new webpack.DefinePlugin({
-      MOD_METADATA: JSON.stringify({
-        name: packageJson.name,
-        version: packageJson.version,
-        author: packageJson.author,
-        description: packageJson.description,
-        gameVersion: packageJson.gameVersion,
-      }),
+      MOD_METADATA: JSON.stringify(buildModMetadata()),
     }),
   ],
 };
