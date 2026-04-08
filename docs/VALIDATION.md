@@ -76,6 +76,7 @@ If manual launch is explicitly needed later:
 4. keep the working directory outside this repo so the game does not write its own `./settings.json` here
 5. the title-screen Mod Manager does not apply its enabled/disabled state until you press its own `CONTINUE` button
 6. after the Mod Manager apply step completes, use the save-level `CONTINUE` button to load the intended character save
+7. **CRITICAL:** When finished testing, delete the `disable_steam` file so the game can communicate with Steam again. If left behind, workshop mods will not load.
 
 Do not use this path for routine automated validation.
 

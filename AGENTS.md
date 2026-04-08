@@ -58,6 +58,7 @@ For query tips and output format details, see the Vera skill in your skills dire
 - If manual live UI launch is explicitly required, the native launcher is:
   - `"/home/lamim/.local/share/Steam/steamapps/common/Ascend From Nine Mountains/launch-native.sh"`
   - create a `disable_steam` sentinel file beside the binary first
+  - **CRITICAL:** When finished testing, delete the `disable_steam` file so the game can communicate with Steam again. If left behind, workshop mods will not load.
   - launch from the installed game directory or another non-repo working directory so the app does not write its own `./settings.json` here
   - after a new build or release bump, recopy `builds/afnm-lucky-all-around.zip` into the installed game's `mods/` directory before retesting or the runtime helper may still show the older installed version
   - if the title-screen Mod Manager is open, press its own `CONTINUE` button to apply mod enable/disable state before loading a save
