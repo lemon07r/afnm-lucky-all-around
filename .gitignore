@@ -5,6 +5,9 @@ mods/
 tmp/
 settings.json
 *.log
+.env
+.env.*
+!.env.example
 .vera/
 .agent/
 .agents/

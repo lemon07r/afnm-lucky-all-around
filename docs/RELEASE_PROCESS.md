@@ -11,8 +11,8 @@ Release snapshot: `2026-04-06`
    - if you will do a manual native-client pass, copy the freshly built zip into the installed game's `mods/` directory first so the live client is not testing a stale local build
    - if you did a manual native-client pass, make sure the Mod Manager `CONTINUE` apply step succeeded before loading the save
 3. Upload the built zip to Steam Workshop from this repo:
-   - update an existing item: `bun run workshop:upload -- --change-note "vX.Y.Z - What changed"`
-   - create a new item intentionally: `bun run workshop:upload -- --change-note "vX.Y.Z - Initial release" --allow-create`
+   - update an existing item: `bun run workshop:upload -- --change-note "vX.Y.Z - What changed" --visibility public`
+   - create a new item intentionally: `bun run workshop:upload -- --change-note "vX.Y.Z - Initial release" --allow-create --visibility public`
 4. Push the release commit to `main`.
 5. After the Workshop upload succeeds, push `git tag vX.Y.Z` to trigger `.github/workflows/release.yml`.
 

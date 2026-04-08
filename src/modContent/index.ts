@@ -13,12 +13,17 @@ type LuckMode = 'force' | 'neverWorse';
 type RuntimeConfig = {
   mode: LuckMode;
   multiplier: number;
+  empoweredMultiplier: number;
+  resplendentMultiplier: number;
+  incandescentMultiplier: number;
+  transcendentMultiplier: number;
 };
 
-type PityAdjustment = {
+type EventAdjustment = {
   index: number;
   condition: string | null;
   rarity: string | null;
+  isPity: boolean;
   baseWeight: number;
   vanillaMultiplier: number;
   configuredMultiplier: number;
@@ -39,8 +44,8 @@ type ExplorePatchContext = {
   lastEventIndex: number | null;
   lastEventCount: number;
   config: RuntimeConfig;
-  adjustments: PityAdjustment[];
-  adjustmentsByKey: Map<string, PityAdjustment>;
+  adjustments: EventAdjustment[];
+  adjustmentsByKey: Map<string, EventAdjustment>;
   pushTrackingByKey: Map<string, { nativeSeen: number; adjustedPushed: number }>;
 };
 
@@ -48,10 +53,19 @@ const MOD_TAG = '[LuckyAllAround]';
 const DEFAULT_PITY_MULTIPLIER = 6;
 const MIN_PITY_MULTIPLIER = 1;
 const MAX_PITY_MULTIPLIER = 10;
+const MIN_RARITY_MULTIPLIER = 1;
+const MAX_RARITY_MULTIPLIER = 10;
+
 const MODE_FLAG_KEY = 'luckyAllAround.mode';
 const MULTIPLIER_FLAG_KEY = 'luckyAllAround.multiplier';
+const EMPOWERED_MULTIPLIER_FLAG_KEY = 'luckyAllAround.empoweredMultiplier';
+const RESPLENDENT_MULTIPLIER_FLAG_KEY = 'luckyAllAround.resplendentMultiplier';
+const INCANDESCENT_MULTIPLIER_FLAG_KEY = 'luckyAllAround.incandescentMultiplier';
+const TRANSCENDENT_MULTIPLIER_FLAG_KEY = 'luckyAllAround.transcendentMultiplier';
+
 const LEGACY_MODE_FLAG_KEY = 'luckyAllAroundX6.mode';
 const LEGACY_MULTIPLIER_FLAG_KEY = 'luckyAllAroundX6.multiplier';
+
 const VANILLA_PITY_MULTIPLIERS = [10, 8, 4, 2];
 const VANILLA_DEFAULT_PITY_MULTIPLIER = 1;
 const RARITIES = [
@@ -117,6 +131,19 @@ function clampMultiplier(value: unknown): number {
   );
 }
 
+function clampRarityMultiplier(value: unknown): number {
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return MIN_RARITY_MULTIPLIER;
+  }
+
+  return Math.min(
+    MAX_RARITY_MULTIPLIER,
+    Math.max(MIN_RARITY_MULTIPLIER, Math.round(numericValue)),
+  );
+}
+
 function normalizeMode(value: unknown): LuckMode {
   return value === 'neverWorse' || value === 1 || value === '1' || value === true
     ? 'neverWorse'
@@ -133,6 +160,10 @@ function getRuntimeConfigFromFlags(flags: Record<string, unknown>): RuntimeConfi
     multiplier: clampMultiplier(
       flags[MULTIPLIER_FLAG_KEY] ?? flags[LEGACY_MULTIPLIER_FLAG_KEY],
     ),
+    empoweredMultiplier: clampRarityMultiplier(flags[EMPOWERED_MULTIPLIER_FLAG_KEY]),
+    resplendentMultiplier: clampRarityMultiplier(flags[RESPLENDENT_MULTIPLIER_FLAG_KEY]),
+    incandescentMultiplier: clampRarityMultiplier(flags[INCANDESCENT_MULTIPLIER_FLAG_KEY]),
+    transcendentMultiplier: clampRarityMultiplier(flags[TRANSCENDENT_MULTIPLIER_FLAG_KEY]),
   };
 }
 
@@ -143,6 +174,10 @@ function getRuntimeConfig(): RuntimeConfig {
 function persistRuntimeConfig(config: RuntimeConfig) {
   window.modAPI?.actions?.setGlobalFlag?.(MODE_FLAG_KEY, serializeMode(config.mode));
   window.modAPI?.actions?.setGlobalFlag?.(MULTIPLIER_FLAG_KEY, config.multiplier);
+  window.modAPI?.actions?.setGlobalFlag?.(EMPOWERED_MULTIPLIER_FLAG_KEY, config.empoweredMultiplier);
+  window.modAPI?.actions?.setGlobalFlag?.(RESPLENDENT_MULTIPLIER_FLAG_KEY, config.resplendentMultiplier);
+  window.modAPI?.actions?.setGlobalFlag?.(INCANDESCENT_MULTIPLIER_FLAG_KEY, config.incandescentMultiplier);
+  window.modAPI?.actions?.setGlobalFlag?.(TRANSCENDENT_MULTIPLIER_FLAG_KEY, config.transcendentMultiplier);
 }
 
 function ensureNormalizedRuntimeConfig() {
@@ -152,13 +187,18 @@ function ensureNormalizedRuntimeConfig() {
   const needsMultiplierWrite =
     typeof flags[MULTIPLIER_FLAG_KEY] !== 'number' ||
     flags[MULTIPLIER_FLAG_KEY] !== normalizedConfig.multiplier;
+  const needsEmpoweredWrite = flags[EMPOWERED_MULTIPLIER_FLAG_KEY] !== normalizedConfig.empoweredMultiplier;
+  const needsResplendentWrite = flags[RESPLENDENT_MULTIPLIER_FLAG_KEY] !== normalizedConfig.resplendentMultiplier;
+  const needsIncandescentWrite = flags[INCANDESCENT_MULTIPLIER_FLAG_KEY] !== normalizedConfig.incandescentMultiplier;
+  const needsTranscendentWrite = flags[TRANSCENDENT_MULTIPLIER_FLAG_KEY] !== normalizedConfig.transcendentMultiplier;
+
   const needsLegacyMigration =
     flags[MODE_FLAG_KEY] === undefined ||
     flags[MULTIPLIER_FLAG_KEY] === undefined ||
     flags[LEGACY_MODE_FLAG_KEY] !== undefined ||
     flags[LEGACY_MULTIPLIER_FLAG_KEY] !== undefined;
 
-  if (needsModeWrite || needsMultiplierWrite || needsLegacyMigration) {
+  if (needsModeWrite || needsMultiplierWrite || needsEmpoweredWrite || needsResplendentWrite || needsIncandescentWrite || needsTranscendentWrite || needsLegacyMigration) {
     persistRuntimeConfig(normalizedConfig);
   }
 }
@@ -171,16 +211,12 @@ function updateRuntimeConfig(partialConfig: Partial<RuntimeConfig>): RuntimeConf
 
   normalizedConfig.mode = normalizeMode(normalizedConfig.mode);
   normalizedConfig.multiplier = clampMultiplier(normalizedConfig.multiplier);
+  normalizedConfig.empoweredMultiplier = clampRarityMultiplier(normalizedConfig.empoweredMultiplier);
+  normalizedConfig.resplendentMultiplier = clampRarityMultiplier(normalizedConfig.resplendentMultiplier);
+  normalizedConfig.incandescentMultiplier = clampRarityMultiplier(normalizedConfig.incandescentMultiplier);
+  normalizedConfig.transcendentMultiplier = clampRarityMultiplier(normalizedConfig.transcendentMultiplier);
   persistRuntimeConfig(normalizedConfig);
   return normalizedConfig;
-}
-
-function describeConfig(config: RuntimeConfig): string {
-  if (config.mode === 'neverWorse') {
-    return `never worse than ${config.multiplier}x`;
-  }
-
-  return `force ${config.multiplier}x`;
 }
 
 function getAppliedMultiplier(
@@ -293,7 +329,7 @@ function getPityProgress(
   return 0;
 }
 
-function buildPityAdjustment(
+function buildEventAdjustment(
   event: LocationEvent,
   index: number,
   context: Pick<
@@ -306,24 +342,52 @@ function buildPityAdjustment(
   > & {
     allPityConditions: string[];
   },
-): PityAdjustment | null {
-  if (!event.pity) {
-    return null;
-  }
-
+): EventAdjustment | null {
   const baseWeight = getRarityWeight(event.rarity);
-  const vanillaMultiplier = getVanillaPityMultiplier(
-    event.condition,
-    context.playerName,
-    context.allPityConditions,
-  );
-  const appliedMultiplier = getAppliedMultiplier(vanillaMultiplier, context.config);
+  let nativeCount = 0;
+  let adjustedCount = 0;
+  let vanillaMultiplier = 1;
+  let appliedMultiplier = 1;
 
-  let nativeCount = Math.max(1, Math.ceil(baseWeight * vanillaMultiplier));
-  nativeCount = Math.ceil(nativeCount * context.pityProgressMultiplier);
+  if (event.pity) {
+    vanillaMultiplier = getVanillaPityMultiplier(
+      event.condition,
+      context.playerName,
+      context.allPityConditions,
+    );
+    appliedMultiplier = getAppliedMultiplier(vanillaMultiplier, context.config);
 
-  let adjustedCount = Math.max(1, Math.ceil(baseWeight * appliedMultiplier));
-  adjustedCount = Math.ceil(adjustedCount * context.pityProgressMultiplier);
+    nativeCount = Math.max(1, Math.ceil(baseWeight * vanillaMultiplier));
+    nativeCount = Math.ceil(nativeCount * context.pityProgressMultiplier);
+
+    adjustedCount = Math.max(1, Math.ceil(baseWeight * appliedMultiplier));
+    adjustedCount = Math.ceil(adjustedCount * context.pityProgressMultiplier);
+  } else {
+    nativeCount = baseWeight;
+    switch (event.rarity) {
+      case 'empowered':
+        appliedMultiplier = context.config.empoweredMultiplier;
+        break;
+      case 'resplendent':
+        appliedMultiplier = context.config.resplendentMultiplier;
+        break;
+      case 'incandescent':
+        appliedMultiplier = context.config.incandescentMultiplier;
+        break;
+      case 'transcendent':
+        appliedMultiplier = context.config.transcendentMultiplier;
+        break;
+      default:
+        appliedMultiplier = 1;
+        break;
+    }
+    
+    if (appliedMultiplier <= 1) {
+      return null;
+    }
+    
+    adjustedCount = Math.ceil(baseWeight * appliedMultiplier);
+  }
 
   if (context.lastEventIndex === index) {
     nativeCount -= context.lastEventCount;
@@ -337,9 +401,10 @@ function buildPityAdjustment(
     index,
     condition: event.condition ?? null,
     rarity: event.rarity ?? null,
+    isPity: Boolean(event.pity),
     baseWeight,
     vanillaMultiplier,
-    configuredMultiplier: context.config.multiplier,
+    configuredMultiplier: event.pity ? context.config.multiplier : appliedMultiplier,
     appliedMultiplier,
     fixedMultiplier: appliedMultiplier,
     nativeCount,
@@ -388,7 +453,7 @@ function buildLocationAdjustments(
   const allPityConditions = getAllPityConditions();
   const adjustments = locationEvents
     .map((event, index) =>
-      buildPityAdjustment(event, index, {
+      buildEventAdjustment(event, index, {
         config,
         playerName,
         pityProgressMultiplier,
@@ -397,8 +462,8 @@ function buildLocationAdjustments(
         allPityConditions,
       }),
     )
-    .filter((value): value is PityAdjustment => Boolean(value));
-  const adjustmentsByKey = new Map<string, PityAdjustment>(
+    .filter((value): value is EventAdjustment => Boolean(value));
+  const adjustmentsByKey = new Map<string, EventAdjustment>(
     adjustments.map((adjustment) => [
       `${adjustment.index}:${adjustment.condition ?? ''}`,
       adjustment,
@@ -409,7 +474,6 @@ function buildLocationAdjustments(
     diagnostics: {
       ready: true,
       config,
-      configDescription: describeConfig(config),
       playerName,
       currentLocationName: snapshot.location.current ?? null,
       locationName,
@@ -485,8 +549,7 @@ function buildAdjustedPushItems(
   if (
     !value ||
     typeof value !== 'object' ||
-    typeof (value as { index?: unknown }).index !== 'number' ||
-    !(value as { event?: LocationEvent }).event?.pity
+    typeof (value as { index?: unknown }).index !== 'number'
   ) {
     return [value];
   }
@@ -587,6 +650,71 @@ function createTextElement(
   return createElement(tagName, { key, style }, text);
 }
 
+function createSlider(
+  createElement: (...args: unknown[]) => unknown,
+  key: string,
+  label: string,
+  min: number,
+  max: number,
+  value: number,
+  onChange: (value: number) => void,
+) {
+  return createElement(
+    'label',
+    {
+      key,
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+      },
+    },
+    [
+      createTextElement(
+        createElement,
+        'div',
+        `${key}-label`,
+        `${label}: ${value}x`,
+        {
+          fontWeight: 600,
+        },
+      ),
+      createElement('input', {
+        key: `${key}-input`,
+        type: 'range',
+        min,
+        max,
+        step: 1,
+        value,
+        onChange: (event: Event) => {
+          const target = event.target as HTMLInputElement | null;
+          onChange(Number(target?.value));
+        },
+        style: {
+          width: '100%',
+        },
+      }),
+      createElement(
+        'div',
+        {
+          key: `${key}-marks`,
+          style: {
+            display: 'flex',
+            justifyContent: 'space-between',
+            fontSize: '0.85rem',
+            opacity: 0.75,
+          },
+        },
+        [
+          createTextElement(createElement, 'span', `${key}-mark1`, `${min}x`),
+          createTextElement(createElement, 'span', `${key}-markMid`, `${Math.floor((min + max) / 2)}x`),
+          createTextElement(createElement, 'span', `${key}-markMax`, `${max}x`),
+        ],
+      ),
+    ],
+  );
+}
+
 const LuckyAllAroundOptions: ModOptionsFC = ({ api }) => {
   const ReactRuntime = window.React;
 
@@ -611,7 +739,6 @@ const LuckyAllAroundOptions: ModOptionsFC = ({ api }) => {
     setConfig(nextConfig);
   };
   const isForceMode = config.mode === 'force';
-  const summaryText = `Saved globally. Current behavior: ${describeConfig(config)}.`;
   const forceLabel = isForceMode
     ? `Force ${config.multiplier}x Selected`
     : `Use Force ${config.multiplier}x`;
@@ -633,11 +760,25 @@ const LuckyAllAroundOptions: ModOptionsFC = ({ api }) => {
       },
     },
     [
+      // --- Pity Events Configuration ---
       createTextElement(
         createElement,
         'div',
-        'intro',
-        'Configure how pity-exclusive events are weighted.',
+        'pity-title',
+        'Exclusive Event Options',
+        {
+          fontWeight: 700,
+          fontSize: '1.2rem',
+          borderBottom: '1px solid rgba(212, 175, 55, 0.3)',
+          paddingBottom: '4px',
+          marginTop: '4px',
+        }
+      ),
+      createTextElement(
+        createElement,
+        'div',
+        'pity-intro',
+        'Configure how exclusive, player-seeded pity events are weighted.',
         {
           lineHeight: 1.45,
           opacity: 0.9,
@@ -693,59 +834,14 @@ const LuckyAllAroundOptions: ModOptionsFC = ({ api }) => {
           ),
         ],
       ),
-      createElement(
-        'label',
-        {
-          key: 'slider',
-          style: {
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-          },
-        },
-        [
-          createTextElement(
-            createElement,
-            'div',
-            'sliderLabel',
-            `Luck multiplier: ${config.multiplier}x`,
-            {
-              fontWeight: 600,
-            },
-          ),
-          createElement('input', {
-            key: 'sliderInput',
-            type: 'range',
-            min: MIN_PITY_MULTIPLIER,
-            max: MAX_PITY_MULTIPLIER,
-            step: 1,
-            value: config.multiplier,
-            onChange: (event: Event) => {
-              const target = event.target as HTMLInputElement | null;
-              applyConfig({ multiplier: Number(target?.value) });
-            },
-            style: {
-              width: '100%',
-            },
-          }),
-          createElement(
-            'div',
-            {
-              key: 'sliderMarks',
-              style: {
-                display: 'flex',
-                justifyContent: 'space-between',
-                fontSize: '0.85rem',
-                opacity: 0.75,
-              },
-            },
-            [
-              createTextElement(createElement, 'span', 'mark1', '1x'),
-              createTextElement(createElement, 'span', 'mark6', '6x'),
-              createTextElement(createElement, 'span', 'mark10', '10x'),
-            ],
-          ),
-        ],
+      createSlider(
+        createElement,
+        'slider-pity',
+        'Luck multiplier',
+        MIN_PITY_MULTIPLIER,
+        MAX_PITY_MULTIPLIER,
+        config.multiplier,
+        (val) => applyConfig({ multiplier: val })
       ),
       createTextElement(
         createElement,
@@ -757,18 +853,66 @@ const LuckyAllAroundOptions: ModOptionsFC = ({ api }) => {
           opacity: 0.85,
         },
       ),
+
+      // --- Rarity Events Configuration ---
       createTextElement(
         createElement,
         'div',
-        'summary',
-        summaryText,
+        'rarity-title',
+        'Rare Event Luck Boosts',
         {
-          padding: '10px 12px',
-          border: '1px solid rgba(212, 175, 55, 0.35)',
-          borderRadius: '6px',
-          background: 'rgba(0, 0, 0, 0.15)',
+          fontWeight: 700,
+          fontSize: '1.2rem',
+          borderBottom: '1px solid rgba(212, 175, 55, 0.3)',
+          paddingBottom: '4px',
+          marginTop: '16px',
+        }
+      ),
+      createTextElement(
+        createElement,
+        'div',
+        'rarity-intro',
+        'Boost your chances of encountering rare items and events while exploring without altering actual drop quantities or combat difficulty. Higher multipliers dramatically increase how frequently these rare events appear.',
+        {
           lineHeight: 1.45,
+          opacity: 0.9,
         },
+      ),
+      createSlider(
+        createElement,
+        'slider-empowered',
+        'Empowered Event Multiplier',
+        MIN_RARITY_MULTIPLIER,
+        MAX_RARITY_MULTIPLIER,
+        config.empoweredMultiplier,
+        (val) => applyConfig({ empoweredMultiplier: val })
+      ),
+      createSlider(
+        createElement,
+        'slider-resplendent',
+        'Resplendent Event Multiplier',
+        MIN_RARITY_MULTIPLIER,
+        MAX_RARITY_MULTIPLIER,
+        config.resplendentMultiplier,
+        (val) => applyConfig({ resplendentMultiplier: val })
+      ),
+      createSlider(
+        createElement,
+        'slider-incandescent',
+        'Incandescent Event Multiplier',
+        MIN_RARITY_MULTIPLIER,
+        MAX_RARITY_MULTIPLIER,
+        config.incandescentMultiplier,
+        (val) => applyConfig({ incandescentMultiplier: val })
+      ),
+      createSlider(
+        createElement,
+        'slider-transcendent',
+        'Transcendent Event Multiplier',
+        MIN_RARITY_MULTIPLIER,
+        MAX_RARITY_MULTIPLIER,
+        config.transcendentMultiplier,
+        (val) => applyConfig({ transcendentMultiplier: val })
       ),
     ],
   );

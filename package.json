@@ -1,6 +1,6 @@
 {
   "name": "afnm-lucky-all-around",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Configurable pity-event luck weighting for Ascend From Nine Mountains",
   "author": {
     "name": "lamim"
@@ -14,7 +14,7 @@
       "Gameplay",
       "Balance"
     ],
-    "visibility": "private",
+    "visibility": "public",
     "previewImagePath": "lucky-afnm-thumb.jpg"
   },
   "main": "mod.js",
