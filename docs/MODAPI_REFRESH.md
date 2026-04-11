@@ -1,14 +1,14 @@
 # ModAPI Refresh
 
-Snapshot date: `2026-04-04`
+Snapshot date: `2026-04-11`
 
 This repo was refreshed against:
 
-- installed AFNM runtime `0.6.49-727424c`
-- `afnm-types` `0.6.49`
+- installed AFNM runtime `0.6.50`
+- `afnm-types` `0.6.50`
 - upstream example/docs repo `Lyeeedar/AfnmExampleMod` commit `61d0099`
 
-## New 0.6.49 Surface
+## New 0.6.50 Surface
 
 Compared with the older `0.6.47` setup, the important new ModAPI surface for this mod is:
 
@@ -38,7 +38,7 @@ The weighted candidate rewrite still uses the small `Array.prototype.push` patch
 
 Reason:
 
-- in the shipped `0.6.49` runtime, `onGenerateExploreEvents` fires before the game expands weighted explore candidates into repeated `{ index, event }` entries
+- in the shipped `0.6.50` runtime, `onGenerateExploreEvents` fires before the game expands weighted explore candidates into repeated `{ index, event }` entries
 - repeat-penalty bookkeeping is keyed by that weighted event index (`currentLocationLastEvent` / `currentLocationLastEventCount`)
 - duplicating whole events inside `onGenerateExploreEvents` would change repeat-penalty semantics, so the official hook alone is not a full replacement yet
 

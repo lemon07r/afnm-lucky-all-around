@@ -4,8 +4,8 @@ Validation snapshot: `2026-04-06`
 
 Default parity target:
 
-- installed runtime `0.6.49-727424c`
-- `afnm-types` `0.6.49`
+- installed runtime `0.6.50`
+- `afnm-types` `0.6.50`
 
 ## Default Validation Flow
 

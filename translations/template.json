@@ -1,0 +1,23 @@
+{
+  "_comment": "Translation template for Lucky All Around. Copy this file, rename it to the target language code (e.g. ru.json, zh.json), and replace each English value with the translated string. The game auto-loads files from this folder as of 0.6.50.",
+  "luckyAllAround": {
+    "options": {
+      "pityTitle": "Exclusive Event Options",
+      "pityIntro": "Configure how exclusive, player-seeded pity events are weighted.",
+      "modeLabel": "Mode",
+      "forceModeSelected": "Force {multiplier}x Selected",
+      "forceModeAction": "Use Force {multiplier}x",
+      "neverWorseModeSelected": "Never Worse {multiplier}x Selected",
+      "neverWorseModeAction": "Use Never Worse {multiplier}x",
+      "forceModeDescription": "Force mode replaces the vanilla tier for every pity event. Native 8x and 10x tiers can be reduced to {multiplier}x.",
+      "neverWorseModeDescription": "Never Worse mode keeps higher vanilla tiers and only raises lower tiers up to at least {multiplier}x.",
+      "luckMultiplierLabel": "Luck multiplier",
+      "rarityTitle": "Rare Event Luck Boosts",
+      "rarityIntro": "Boost your chances of encountering rare items and events while exploring without altering actual drop quantities or combat difficulty. Higher multipliers dramatically increase how frequently these rare events appear.",
+      "empoweredSliderLabel": "Empowered Event Multiplier",
+      "resplendentSliderLabel": "Resplendent Event Multiplier",
+      "incandescentSliderLabel": "Incandescent Event Multiplier",
+      "transcendentSliderLabel": "Transcendent Event Multiplier"
+    }
+  }
+}

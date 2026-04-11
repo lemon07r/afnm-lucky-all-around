@@ -19,6 +19,7 @@ declare global {
     isInstalled: () => boolean;
     getConfig: () => LuckyAllAroundConfig;
     getLastExplore: () => unknown;
+    getLastLootDrop: () => unknown;
     inspectCurrentExplore: () => unknown;
     inspectLocation: (locationName?: string) => unknown;
   };

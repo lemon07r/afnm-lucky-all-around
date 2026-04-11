@@ -81,6 +81,7 @@ const originalArrayPush = Array.prototype.push;
 
 let activeExplorePatch: ExplorePatchContext | null = null;
 let lastExploreDiagnostics: JsonRecord | null = null;
+let lastLootDropDiagnostics: JsonRecord | null = null;
 
 function log(message: string, ...args: unknown[]) {
   console.log(MOD_TAG, message, ...args);
@@ -90,6 +91,8 @@ function getLocations(): Record<string, GameLocation> {
   return (window.modAPI?.gameData?.locations ?? {}) as Record<string, GameLocation>;
 }
 
+// As of 0.6.50 getGameStateSnapshot is more reliable across save
+// file loads and switches; no gameStore fallback is needed.
 function getSnapshot(): RootState | null {
   return window.modAPI?.getGameStateSnapshot?.() ?? null;
 }
@@ -921,6 +924,10 @@ const LuckyAllAroundOptions: ModOptionsFC = ({ api }) => {
 function getAvailableModApiFeatures(): JsonRecord {
   return {
     hasGenerateExploreEventsHook: Boolean(window.modAPI?.hooks?.onGenerateExploreEvents),
+    hasLootDropHook: Boolean(window.modAPI?.hooks?.onLootDrop),
+    hasBeforeCombatHook: Boolean(window.modAPI?.hooks?.onBeforeCombat),
+    hasCalculateDamageHook: Boolean(window.modAPI?.hooks?.onCalculateDamage),
+    hasReduxActionHook: Boolean(window.modAPI?.hooks?.onReduxAction),
     hasRegisterOptionsUI: Boolean(window.modAPI?.actions?.registerOptionsUI),
     hasGlobalFlags: Boolean(
       window.modAPI?.actions?.getGlobalFlags &&
@@ -969,12 +976,40 @@ function installOptionsUi() {
   window.modAPI?.actions?.registerOptionsUI?.(LuckyAllAroundOptions);
 }
 
+function installLootDropTracker() {
+  const registerHook = window.modAPI?.hooks?.onLootDrop;
+
+  if (!registerHook) {
+    return;
+  }
+
+  registerHook((items, flags) => {
+    const config = getRuntimeConfig();
+    lastLootDropDiagnostics = {
+      recordedAt: new Date().toISOString(),
+      version: MOD_METADATA.version,
+      config: cloneForDebug(config),
+      itemCount: items.length,
+      items: cloneForDebug(
+        items.map((item) => ({
+          name: item.name,
+          rarity: (item as { rarity?: string }).rarity ?? null,
+          count: (item as { count?: number }).count ?? 1,
+        })),
+      ),
+      flags: cloneForDebug(flags),
+      lastExploreStatus: lastExploreDiagnostics?.status ?? null,
+    };
+  });
+}
+
 function installDebugApi() {
   const debugApi = {
     getVersion: () => MOD_METADATA.version,
     isInstalled: () => true,
     getConfig: () => cloneForDebug(getRuntimeConfig()),
     getLastExplore: () => cloneForDebug(lastExploreDiagnostics),
+    getLastLootDrop: () => cloneForDebug(lastLootDropDiagnostics),
     inspectCurrentExplore: () => cloneForDebug(inspectCurrentExplore()),
     inspectLocation: (locationName?: string) =>
       cloneForDebug(inspectLocation(locationName)),
@@ -989,6 +1024,7 @@ if (!window.__luckyAllAroundInstalled && !window.__luckyAllAroundX6Installed) {
   window.__luckyAllAroundX6Installed = true;
   ensureNormalizedRuntimeConfig();
   installExploreInterceptor();
+  installLootDropTracker();
   installOptionsUi();
   installDebugApi();
 
