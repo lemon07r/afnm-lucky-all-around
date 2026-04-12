@@ -1,12 +1,12 @@
 # Luck Audit
 
-Audit snapshot: `2026-04-04`
+Audit snapshot: `2026-04-11`
 
 This mod only patches the shipped `Explore` pity-event weighting path.
 
 ## Confirmed Player-Name Seeded Logic
 
-The installed `0.6.49-727424c` game bundle contains one confirmed gameplay path that derives a deterministic weighting from the player's full name:
+The installed `0.6.50-c2637ae` game bundle contains one confirmed gameplay path that derives a deterministic weighting from the player's full name:
 
 - `Explore` pity-event exclusivity tiers
   - the native odds tiers are `[10, 8, 4, 2]` with a fallback of `1`
@@ -18,9 +18,9 @@ The installed `0.6.49-727424c` game bundle contains one confirmed gameplay path 
 
 That is the mechanic this mod rewrites.
 
-## 0.6.49 Explore Hook Order
+## 0.6.50 Explore Hook Order
 
-The shipped `0.6.49` runtime now exposes `window.modAPI.hooks.onGenerateExploreEvents(...)`, but the installed bundle shows this order:
+The shipped `0.6.50` runtime now exposes `window.modAPI.hooks.onGenerateExploreEvents(...)`, but the installed bundle shows this order:
 
 1. start from `location.events`
 2. run `onGenerateExploreEvents`

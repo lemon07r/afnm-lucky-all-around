@@ -1,5 +1,8 @@
 # Mod API Feature Request: Dynamic Trigger Chance Hook
 
+**Status: ARCHIVED FOR THIS REPO**
+*Note: AFNM `0.6.50` did not add the requested trigger-chance hook. This document is retained for historical context, but Lucky All Around no longer depends on it because the mod scope narrowed to Explore weighting through `onGenerateExploreEvents`.*
+
 **Context:** The developer mentioned looking into `components/game/EventTrigger.tsx` to handle location-based event modifiers.
 
 ## The Goal
