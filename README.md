@@ -71,3 +71,14 @@ Steam must be running locally, and the sibling uploader repo must exist at `../M
 - The only retained monkeypatch is the weighted candidate-slot rewrite, because the shipped `0.6.50` Explore hook still runs before the game's final weighted `{ index, event }` pool is built.
 - The only confirmed player-name-seeded gameplay weighting found in the shipped bundle remains the `Explore` pity-event exclusivity assignment. Adjacent deterministic systems are documented in `docs/LUCK_AUDIT.md`.
 - Release and workshop order is documented in `docs/RELEASE_PROCESS.md`.
+
+## My Other Mods
+
+- [CraftBuddy](https://github.com/lemon07r/AFNM-CraftBuddy) — Live crafting optimizer overlay with AutoBuddy auto mode. ([Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3661729323))
+- [ElderGPT Spirit Ring](https://github.com/lemon07r/ElderGPT-Spirit-Ring) — AI-powered contextual advisor overlay. Chat with any AI model inside the game. ([Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3701616500))
+
+[View all my mods in my AFNM mod collection](https://steamcommunity.com/sharedfiles/filedetails/?id=3704747572)
+
+## Make Your Own Mod
+
+Want to build your own AFNM mod? Use the [AFNM Agent Mod Template](https://github.com/lemon07r/AfnmAgentModTemplate) — a ready-to-go scaffold with ModAPI reference docs, runtime validation scripts, Workshop packaging, and built-in support for AI coding agents.
