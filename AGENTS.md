@@ -4,6 +4,10 @@
 
 Track project skills in `.agents/skills/`. Load `lucky-explore-pity` for any Explore pity weighting, ModAPI hook, debug helper, or validation work before opening long docs.
 
+## Documentation And Skill Stewardship
+
+If you discover inaccurate, stale, duplicated, or misleading information in any doc or `.agents/skills/*` file while working, fix it in the same change. Agents have standing permission to edit, correct, prune, or improve docs and skills so future agents do not inherit known traps. Verify corrections against code, tests, package scripts, or the installed-runtime oracle; if something cannot be fully verified, make the uncertainty explicit instead of presenting it as fact.
+
 ## Code Search
 
 This project is indexed with Vera. Use `vera search "query"` for semantic search and `vera grep "pattern"` for exact/regex search. Run `vera update .` after code changes.

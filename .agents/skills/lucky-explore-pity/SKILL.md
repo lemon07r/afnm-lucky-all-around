@@ -34,6 +34,10 @@ Lucky All Around only changes AFNM Explore pity-event weighting. Keep the patch 
 - Preserve numeric global flags for `luckyAllAround.mode` and `luckyAllAround.multiplier`; keep legacy string normalization.
 - Runtime debug surface is `window.luckyAllAroundDebug` with `getConfig()`, `inspectLocation(locationName?)`, `inspectCurrentExplore()`, and last-explore inspection.
 
+## Documentation And Skill Stewardship
+
+If `docs/LUCK_AUDIT.md`, `docs/MODAPI_REFRESH.md`, `docs/VALIDATION.md`, this skill, or any other project doc/skill is wrong or stale, update it immediately while the context is fresh. Do not leave known inaccurate hook-order, runtime-version, debug-helper, or release-flow guidance for later agents.
+
 ## Validation
 
 ```bash
