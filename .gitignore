@@ -10,7 +10,6 @@ settings.json
 !.env.example
 .vera/
 .agent/
-.agents/
 .claude/
 .factory/
 .junie/
