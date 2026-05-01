@@ -760,6 +760,8 @@ const LuckyAllAroundOptions: ModOptionsFC = ({ api }) => {
         flexDirection: 'column',
         gap: '14px',
         padding: '8px 4px 4px',
+        overflow: 'auto',
+        maxHeight: '100%',
       },
     },
     [
