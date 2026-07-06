@@ -12,6 +12,10 @@ declare global {
   type LuckyAllAroundConfig = {
     mode: 'force' | 'neverWorse';
     multiplier: number;
+    empoweredMultiplier: number;
+    resplendentMultiplier: number;
+    incandescentMultiplier: number;
+    transcendentMultiplier: number;
   };
 
   type LuckyAllAroundDebugApi = {
@@ -20,6 +24,7 @@ declare global {
     getConfig: () => LuckyAllAroundConfig;
     getLastExplore: () => unknown;
     getLastLootDrop: () => unknown;
+    getCompatibility: () => unknown;
     inspectCurrentExplore: () => unknown;
     inspectLocation: (locationName?: string) => unknown;
   };

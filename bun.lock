@@ -8,7 +8,7 @@
         "puppeteer-core": "^24.40.0",
       },
       "devDependencies": {
-        "afnm-types": "0.6.50",
+        "afnm-types": "0.7.0",
         "ts-loader": "^9.5.4",
         "typescript": "^5.9.3",
         "webpack": "^5.105.3",
@@ -134,7 +134,7 @@
 
     "acorn-import-phases": ["acorn-import-phases@1.0.4", "", { "peerDependencies": { "acorn": "^8.14.0" } }, "sha512-wKmbr/DDiIXzEOiWrTTUcDm24kQ2vGfZQvM2fwg2vXqR5uW6aapr7ObPtj1th32b9u90/Pf4AItvdTh42fBmVQ=="],
 
-    "afnm-types": ["afnm-types@0.6.50", "", { "dependencies": { "glob": "^11.0.0" }, "peerDependencies": { "@mui/icons-material": "^7.3.9", "@mui/material": "^7.3.9", "typescript": ">=5.0.0" }, "bin": { "afnm-extract-translations": "dist/cli/extract-mod-translations/index.js" } }, "sha512-6nKQAIdcSRYjQq9SAYOp3NotvEjxyCHq6VK9YCrByKfHDkcCg0iM+pyjTrW37hxFMpwh6TIaeSwn4xfbU6wLow=="],
+    "afnm-types": ["afnm-types@0.7.0", "", { "dependencies": { "glob": "^11.0.0" }, "peerDependencies": { "@mui/icons-material": "^7.3.9", "@mui/material": "^7.3.9", "typescript": ">=5.0.0" }, "bin": { "afnm-extract-translations": "dist/cli/extract-mod-translations/index.js" } }, "sha512-0aTM2Qp3cNm7hFJNU1/8lgHBW81EpcxYkvkZKXsQrvuCuyFTV+/kaVKmpXZUrkkdaSOjeynGTNVuyMNRFzNJEA=="],
 
     "agent-base": ["agent-base@7.1.4", "", {}, "sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ=="],
 

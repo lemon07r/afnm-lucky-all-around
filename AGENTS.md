@@ -22,7 +22,7 @@ This project is indexed with Vera. Use `vera search "query"` for semantic search
 - `scripts/zip-dist.js` writes the dist package and zip.
 - `scripts/workshop-upload.ts` publishes through sibling `../ModUploader-AFNM`.
 - `scripts/installed-game-runtime.js` extracts/greps the installed game bundle.
-- `docs/` keeps authoritative audit, validation, ModAPI refresh, and release notes.
+- `docs/` keeps validation and release notes. Current runtime facts belong in this file, the README, or the `lucky-explore-pity` skill, not separate historical audits.
 
 ## Commands
 
@@ -38,7 +38,7 @@ This project is indexed with Vera. Use `vera search "query"` for semantic search
 
 - AFNM mods expose `window.AFNMMod.getMetadata()`.
 - Prefer official ModAPI entrypoints over DOM/raw store access.
-- This mod changes Explore pity-event weighting only; do not widen scope without updating `docs/LUCK_AUDIT.md`.
+- This mod changes Explore pity-event weighting only. Do not widen scope without a fresh installed-runtime audit and a concise update to this file plus the project skill.
 - `onGenerateExploreEvents` fires before final weighted pool expansion, so keep the weighted-slot patch narrow.
 - Settings use numeric global flags under `luckyAllAround.mode` and `luckyAllAround.multiplier` with legacy string normalization.
 - Debug helper: `window.luckyAllAroundDebug`.

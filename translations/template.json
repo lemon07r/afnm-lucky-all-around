@@ -1,5 +1,5 @@
 {
-  "_comment": "Translation template for Lucky All Around. Copy this file, rename it to the target language code (e.g. ru.json, zh.json), and replace each English value with the translated string. The game auto-loads files from this folder as of 0.6.50.",
+  "_comment": "Translation template for Lucky All Around. Copy this file, rename it to the target language code (e.g. ru.json, zh.json), and replace each English value with the translated string.",
   "luckyAllAround": {
     "options": {
       "pityTitle": "Exclusive Event Options",

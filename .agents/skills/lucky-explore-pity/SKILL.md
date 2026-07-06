@@ -12,11 +12,11 @@ Lucky All Around only changes AFNM Explore pity-event weighting. Keep the patch 
 - Editing `src/modContent/index.ts`, mod settings, or debug helpers
 - Working with `onGenerateExploreEvents`
 - Investigating `globalSpecialEventPity`, `currentLocationLastEvent`, or weighted candidate pools
-- Updating `docs/LUCK_AUDIT.md`, `docs/MODAPI_REFRESH.md`, or validation flow
+- Updating validation or release flow
 
 ## Current Runtime Facts
 
-- Installed AFNM `0.6.50` calls `onGenerateExploreEvents` before final weighted `{ index, event }` entries are expanded.
+- Installed AFNM `0.7.1-7117b38` calls `onGenerateExploreEvents` before final weighted `{ index, event }` entries are expanded.
 - Repeat penalty bookkeeping is keyed by weighted event index via `currentLocationLastEvent` / `currentLocationLastEventCount`.
 - Duplicating whole events in the hook would change native repeat behavior.
 - The mod therefore uses ModAPI to arm/scope the behavior and keeps a narrow `Array.prototype.push` weighted-slot patch for the missing final-pool hook.
@@ -30,13 +30,13 @@ Lucky All Around only changes AFNM Explore pity-event weighting. Keep the patch 
 
 ## Scope Rules
 
-- Do not widen this mod to unrelated deterministic systems unless a fresh installed-runtime audit proves a player-name-seeded gameplay path and docs are updated.
+- Do not widen this mod to unrelated deterministic systems unless a fresh installed-runtime audit proves a player-name-seeded gameplay path and active docs/skills are updated.
 - Preserve numeric global flags for `luckyAllAround.mode` and `luckyAllAround.multiplier`; keep legacy string normalization.
-- Runtime debug surface is `window.luckyAllAroundDebug` with `getConfig()`, `inspectLocation(locationName?)`, `inspectCurrentExplore()`, and last-explore inspection.
+- Runtime debug surface is `window.luckyAllAroundDebug` with `getConfig()`, `getCompatibility()`, `inspectLocation(locationName?)`, `inspectCurrentExplore()`, and last-explore inspection.
 
 ## Documentation And Skill Stewardship
 
-If `docs/LUCK_AUDIT.md`, `docs/MODAPI_REFRESH.md`, `docs/VALIDATION.md`, this skill, or any other project doc/skill is wrong or stale, update it immediately while the context is fresh. Do not leave known inaccurate hook-order, runtime-version, debug-helper, or release-flow guidance for later agents.
+If `docs/VALIDATION.md`, this skill, or any other project doc/skill is wrong or stale, update it immediately while the context is fresh. Do not leave known inaccurate hook-order, runtime-version, debug-helper, or release-flow guidance for later agents.
 
 ## Validation
 
@@ -58,7 +58,5 @@ Manual live UI is opt-in only; if used, recopy the rebuilt zip, launch outside t
 
 ## References
 
-- `docs/LUCK_AUDIT.md`
-- `docs/MODAPI_REFRESH.md`
 - `docs/VALIDATION.md`
 - `src/modContent/index.ts`

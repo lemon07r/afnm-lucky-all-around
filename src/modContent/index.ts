@@ -919,6 +919,17 @@ const LuckyAllAroundOptions: ModOptionsFC = ({ api }) => {
         config.transcendentMultiplier,
         (val) => applyConfig({ transcendentMultiplier: val })
       ),
+      createTextElement(
+        createElement,
+        'div',
+        'compatibilityDiagnostics',
+        getCompatibilitySummary(),
+        {
+          lineHeight: 1.45,
+          opacity: 0.8,
+          fontSize: '0.9rem',
+        },
+      ),
     ],
   );
 };
@@ -938,6 +949,37 @@ function getAvailableModApiFeatures(): JsonRecord {
     hasStateSnapshot: Boolean(window.modAPI?.getGameStateSnapshot),
     hasSubscribe: Boolean(window.modAPI?.subscribe),
   };
+}
+
+function getCompatibilityDiagnostics(): JsonRecord {
+  const features = getAvailableModApiFeatures();
+  const requiredFeatures = [
+    'hasGenerateExploreEventsHook',
+    'hasRegisterOptionsUI',
+    'hasGlobalFlags',
+    'hasStateSnapshot',
+  ];
+  const missingRequiredFeatures = requiredFeatures.filter(
+    (feature) => !features[feature],
+  );
+
+  return {
+    compiledAfnmTypes: MOD_METADATA.gameVersion ?? null,
+    modVersion: MOD_METADATA.version,
+    compatible: missingRequiredFeatures.length === 0,
+    missingRequiredFeatures,
+    features,
+  };
+}
+
+function getCompatibilitySummary(): string {
+  const diagnostics = getCompatibilityDiagnostics();
+  const compiledAfnmTypes = diagnostics.compiledAfnmTypes ?? 'unknown';
+  const missing = diagnostics.missingRequiredFeatures as string[];
+
+  return missing.length === 0
+    ? `Compatibility: AFNM types ${compiledAfnmTypes}; required ModAPI features detected.`
+    : `Compatibility: AFNM types ${compiledAfnmTypes}; missing ${missing.join(', ')}.`;
 }
 
 function installExploreInterceptor() {
@@ -1012,6 +1054,7 @@ function installDebugApi() {
     getConfig: () => cloneForDebug(getRuntimeConfig()),
     getLastExplore: () => cloneForDebug(lastExploreDiagnostics),
     getLastLootDrop: () => cloneForDebug(lastLootDropDiagnostics),
+    getCompatibility: () => cloneForDebug(getCompatibilityDiagnostics()),
     inspectCurrentExplore: () => cloneForDebug(inspectCurrentExplore()),
     inspectLocation: (locationName?: string) =>
       cloneForDebug(inspectLocation(locationName)),

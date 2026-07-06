@@ -5,7 +5,7 @@
   "author": {
     "name": "lamim"
   },
-  "gameVersion": "0.6.50",
+  "gameVersion": "0.7.0",
   "afnmWorkshop": {
     "workshopId": "3694065051",
     "title": "Lucky All Around",
@@ -29,7 +29,7 @@
     "runtime:grep": "node scripts/installed-game-runtime.js grep"
   },
   "devDependencies": {
-    "afnm-types": "0.6.50",
+    "afnm-types": "0.7.0",
     "ts-loader": "^9.5.4",
     "typescript": "^5.9.3",
     "webpack": "^5.105.3",

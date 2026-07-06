@@ -44,9 +44,10 @@ window.luckyAllAroundDebug.getConfig()
 window.luckyAllAroundDebug.inspectLocation('Bone Pile')
 window.luckyAllAroundDebug.inspectCurrentExplore()
 window.luckyAllAroundDebug.getLastExplore()
+window.luckyAllAroundDebug.getCompatibility()
 ```
 
-The inspector reports vanilla multiplier, configured multiplier, applied multiplier, native candidate count, adjusted candidate count, and delta for each pity event. See `docs/VALIDATION.md` for the real-game workflow and `docs/MODAPI_REFRESH.md` for the `0.6.50` ModAPI audit.
+The inspector reports vanilla multiplier, configured multiplier, applied multiplier, native candidate count, adjusted candidate count, and delta for each pity event. See `docs/VALIDATION.md` for the real-game workflow.
 
 ## Local Workshop Publish
 
@@ -66,10 +67,10 @@ Steam must be running locally, and the sibling uploader repo must exist at `../M
 
 ## Runtime Notes
 
-- Refreshed on `2026-04-11` against installed AFNM runtime `0.6.50-c2637ae`, `afnm-types` `0.6.50`, and upstream example/docs commit `61d0099`.
-- The mod now uses `window.modAPI.hooks.onGenerateExploreEvents(...)` to arm the patch and `window.modAPI.getGameStateSnapshot()` for runtime state reads.
-- The only retained monkeypatch is the weighted candidate-slot rewrite, because the shipped `0.6.50` Explore hook still runs before the game's final weighted `{ index, event }` pool is built.
-- The only confirmed player-name-seeded gameplay weighting found in the shipped bundle remains the `Explore` pity-event exclusivity assignment. Adjacent deterministic systems are documented in `docs/LUCK_AUDIT.md`.
+- Current target: installed AFNM runtime `0.7.1-7117b38` with `afnm-types` `0.7.0`.
+- The mod uses `window.modAPI.hooks.onGenerateExploreEvents(...)` to arm the patch and `window.modAPI.getGameStateSnapshot()` for runtime state reads.
+- The retained monkeypatch is the weighted candidate-slot rewrite, because the Explore hook still fires before the game's final weighted `{ index, event }` pool is built.
+- The scoped mechanic is Explore pity-event exclusivity assignment. Adjacent deterministic systems are out of scope unless a fresh installed-runtime audit proves another player-name-seeded gameplay weighting path.
 - Release and workshop order is documented in `docs/RELEASE_PROCESS.md`.
 
 ## My Other Mods
