@@ -16,7 +16,7 @@ Lucky All Around only changes AFNM Explore pity-event weighting. Keep the patch 
 
 ## Current Runtime Facts
 
-- Installed AFNM `0.7.1-7117b38` calls `onGenerateExploreEvents` before final weighted `{ index, event }` entries are expanded.
+- Installed AFNM `0.7.6-7c586da` calls `onGenerateExploreEvents` before final weighted `{ index, event }` entries are expanded.
 - Repeat penalty bookkeeping is keyed by weighted event index via `currentLocationLastEvent` / `currentLocationLastEventCount`.
 - Duplicating whole events in the hook would change native repeat behavior.
 - The mod therefore uses ModAPI to arm/scope the behavior and keeps a narrow `Array.prototype.push` weighted-slot patch for the missing final-pool hook.
@@ -42,6 +42,7 @@ If `docs/VALIDATION.md`, this skill, or any other project doc/skill is wrong or 
 
 ```bash
 bun run typecheck
+bun run test
 bun run build
 bun run runtime:oracle
 bun run runtime:grep -- "onGenerateExploreEvents|getGameStateSnapshot|globalSpecialEventPity|currentLocationLastEvent"
@@ -59,4 +60,5 @@ Manual live UI is opt-in only; if used, recopy the rebuilt zip, launch outside t
 ## References
 
 - `docs/VALIDATION.md`
-- `src/modContent/index.ts`
+- `src/modContent/logic.ts`
+- `src/modContent/interceptor.ts`

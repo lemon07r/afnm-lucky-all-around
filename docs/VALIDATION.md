@@ -1,19 +1,18 @@
 # Validation
 
-Validation snapshot: `2026-07-06`
+Validation snapshot: `2026-07-27`
 
 Default parity target:
 
-- installed runtime `0.7.1-7117b38`
-- `afnm-types` `0.7.0`
+- installed runtime `0.7.6-7c586da`
+- `afnm-types` `0.7.6`
 
 ## Default Validation Flow
 
 For `src/modContent/index.ts` and other runtime-sensitive work, the default validation path is the installed-runtime oracle below, not launching the live UI.
 
 1. Run local checks:
-   - `bun run typecheck`
-   - `bun run build`
+   - `bun run release:validate`
 2. Verify the installed runtime surface:
    - `bun run runtime:oracle`
    - `bun run runtime:grep -- "onGenerateExploreEvents|getGameStateSnapshot|globalSpecialEventPity|currentLocationLastEvent"`
@@ -36,6 +35,9 @@ This is the preferred path because it validates against the real shipped code wi
   - `injectUI`
   - `subscribe`
   - `getGameStateSnapshot`
+  - stat-filter combat buff interception
+  - the complete `gameData.buffs` registry
+  - `getCoreFormationAltarStats`
 
 When docs, types, and live behavior disagree, prefer the installed runtime.
 

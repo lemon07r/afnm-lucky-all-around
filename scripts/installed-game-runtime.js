@@ -73,10 +73,18 @@ function extractSummary(extractDir, gameDir, asarPath) {
   const packageJsonPath = path.join(extractDir, 'package.json');
   const mainIndexPath = path.join(extractDir, 'dist-electron', 'main', 'index.js');
   const gameJsPath = path.join(extractDir, 'dist-electron', 'Game.js');
+  const dynamicImportHelperPath = path.join(
+    extractDir,
+    'dist-electron',
+    '_rolldown_dynamic_import_helper.js',
+  );
 
   const packageJson = readJson(packageJsonPath);
   const mainIndex = readText(mainIndexPath);
   const gameJs = readText(gameJsPath);
+  const rendererJs = fs.existsSync(dynamicImportHelperPath)
+    ? `${gameJs}\n${readText(dynamicImportHelperPath)}`
+    : gameJs;
 
   const buildVersion = mainIndex.match(/const ce="([^"]+)"/)?.[1] ?? null;
 
@@ -104,6 +112,21 @@ function extractSummary(extractDir, gameDir, asarPath) {
       hasUiInjection: gameJs.includes('injectUI'),
       hasSubscribe: gameJs.includes('subscribe:e=>'),
       hasStateSnapshot: gameJs.includes('getGameStateSnapshot'),
+      hasHarmonyConfigs: gameJs.includes('harmonyConfigs'),
+      hasRemovedItemHarmonyMapping: !gameJs.includes('itemTypeToHarmonyType'),
+      hasHarmonyAugment: gameJs.includes('harmonyAugment'),
+      hasCraftingAutoUse: gameJs.includes('currentCraftingAutoUseLoadout'),
+      hasResearchState:
+        gameJs.includes('research') && gameJs.includes('glyphs'),
+      hasSoulShardDelveState: gameJs.includes('soulShardDelve'),
+      hasBuffStatFilter:
+        rendererJs.includes('interceptBuffEffects') &&
+        rendererJs.includes('statFilter'),
+      hasGlobalBuffRegistry:
+        /techniques:[^,]{1,100},buffs:[^,]{1,100},techniqueBuffs:/.test(gameJs),
+      hasCoreFormationAltarStats: gameJs.includes(
+        'getCoreFormationAltarStats',
+      ),
     },
   };
 }
