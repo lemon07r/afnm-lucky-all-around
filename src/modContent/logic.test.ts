@@ -86,3 +86,25 @@ test('interceptor restoration restores Array.prototype.push', () => {
   restore();
   expect(Array.prototype.push).toBe(originalPush);
 });
+
+test('interceptor ignores unrelated indexed objects', () => {
+  const originalPush = Array.prototype.push;
+  const restore = beginExplorePatch({
+    startedAt: new Date(0).toISOString(),
+    playerName: 'Lin Yue',
+    locationName: 'test',
+    pityProgress: 0,
+    pityProgressMultiplier: 1,
+    lastEventIndex: null,
+    lastEventCount: 0,
+    config,
+    adjustments: [],
+    adjustmentsByKey: new Map(),
+    pushTrackingByKey: new Map(),
+  });
+  const unrelated: Array<{ index: number }> = [];
+  expect(() => unrelated.push({ index: 1 })).not.toThrow();
+  expect(unrelated).toEqual([{ index: 1 }]);
+  restore();
+  expect(Array.prototype.push).toBe(originalPush);
+});

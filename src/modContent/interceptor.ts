@@ -135,7 +135,9 @@ export function buildAdjustedPushItems(
   if (
     !value ||
     typeof value !== 'object' ||
-    typeof (value as { index?: unknown }).index !== 'number'
+    typeof (value as { index?: unknown }).index !== 'number' ||
+    !(value as { event?: unknown }).event ||
+    typeof (value as { event?: unknown }).event !== 'object'
   ) {
     return [value];
   }
