@@ -1,12 +1,11 @@
 # Release Process
 
-Release snapshot: `2026-04-06`
+Release snapshot: `2026-07-27`
 
 1. Update `package.json` version.
 2. Run validation:
-   - `bun run typecheck`
-   - `bun run build`
-   - `bun run runtime:oracle`
+   - `bun install --frozen-lockfile`
+   - `bun run release:validate`
    - confirm the current inspector flow in `docs/VALIDATION.md`
    - if you will do a manual native-client pass, copy the freshly built zip into the installed game's `mods/` directory first so the live client is not testing a stale local build
    - if you did a manual native-client pass, make sure the Mod Manager `CONTINUE` apply step succeeded before loading the save

@@ -14,11 +14,13 @@ This project is indexed with Vera. Use `vera search "query"` for semantic search
 
 ## Project Layout
 
-- `src/modContent/index.ts` is the runtime entrypoint; it owns the Explore patch, settings registration, and debug inspector.
+- `src/modContent/index.ts` is the small runtime bootstrap; pure weighting,
+  persisted configuration, Explore interception, options UI, and diagnostics
+  live in sibling modules.
 - `src/mod.ts` is the webpack-style metadata entrypoint kept in sync as a fallback/reference path.
 - `src/global.d.ts` documents the in-game debug API and the mod-facing `window.modAPI` surface.
 - `scripts/mod-package.js` is the metadata source and resolves `gameVersion` from `afnm-types`.
-- `scripts/build-mod.js` transpiles the distributable bundle; run typecheck separately.
+- Webpack builds the modular distributable bundle; run typecheck separately.
 - `scripts/zip-dist.js` writes the dist package and zip.
 - `scripts/workshop-upload.ts` publishes through sibling `../ModUploader-AFNM`.
 - `scripts/installed-game-runtime.js` extracts/greps the installed game bundle.
@@ -29,6 +31,8 @@ This project is indexed with Vera. Use `vera search "query"` for semantic search
 - `bun install`
 - `bun run typecheck`
 - `bun run build`
+- `bun run test`
+- `bun run release:validate`
 - `bun run runtime:oracle`
 - `bun run runtime:extract`
 - `bun run runtime:grep -- "<pattern>"`

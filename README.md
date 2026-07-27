@@ -18,8 +18,7 @@ Open the mod settings button from the game's mod loading dialog to configure:
 
 ```bash
 bun install
-bun run typecheck
-bun run build
+bun run release:validate
 ```
 
 The packaged mod zip is written to `builds/afnm-lucky-all-around.zip`.
@@ -67,7 +66,7 @@ Steam must be running locally, and the sibling uploader repo must exist at `../M
 
 ## Runtime Notes
 
-- Current target: installed AFNM runtime `0.7.1-7117b38` with `afnm-types` `0.7.0`.
+- Current target: installed AFNM runtime `0.7.6-7c586da` with `afnm-types` `0.7.6`.
 - The mod uses `window.modAPI.hooks.onGenerateExploreEvents(...)` to arm the patch and `window.modAPI.getGameStateSnapshot()` for runtime state reads.
 - The retained monkeypatch is the weighted candidate-slot rewrite, because the Explore hook still fires before the game's final weighted `{ index, event }` pool is built.
 - The scoped mechanic is Explore pity-event exclusivity assignment. Adjacent deterministic systems are out of scope unless a fresh installed-runtime audit proves another player-name-seeded gameplay weighting path.
