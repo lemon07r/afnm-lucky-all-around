@@ -109,6 +109,24 @@ export function getAppliedMultiplier(
     : config.multiplier;
 }
 
+function getConfiguredRarityMultiplier(
+  rarity: string | undefined,
+  config: RuntimeConfig,
+): number {
+  switch (rarity) {
+    case 'empowered':
+      return config.empoweredMultiplier;
+    case 'resplendent':
+      return config.resplendentMultiplier;
+    case 'incandescent':
+      return config.incandescentMultiplier;
+    case 'transcendent':
+      return config.transcendentMultiplier;
+    default:
+      return 1;
+  }
+}
+
 export function getPlayerName(
   player: Pick<PlayerEntity, 'forename' | 'surname'>,
 ): string {
@@ -209,13 +227,10 @@ export function buildEventAdjustment(
     );
   } else {
     nativeCount = baseWeight;
-    const rarityMultipliers: Record<string, number> = {
-      empowered: context.config.empoweredMultiplier,
-      resplendent: context.config.resplendentMultiplier,
-      incandescent: context.config.incandescentMultiplier,
-      transcendent: context.config.transcendentMultiplier,
-    };
-    appliedMultiplier = rarityMultipliers[event.rarity ?? ''] ?? 1;
+    appliedMultiplier = getConfiguredRarityMultiplier(
+      event.rarity,
+      context.config,
+    );
     if (appliedMultiplier <= 1) return null;
     adjustedCount = Math.ceil(baseWeight * appliedMultiplier);
   }

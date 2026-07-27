@@ -2,12 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const packageJson = require('../package.json');
 
-const ROOT = path.resolve(__dirname, '..');
-const GAME_VERSION_PATH = path.resolve(
-  ROOT,
-  'node_modules',
-  'afnm-types',
-  'dist',
+const GAME_VERSION_PATH = path.join(
+  path.dirname(require.resolve('afnm-types')),
   'gameVersion.js',
 );
 const GAME_VERSION_PATTERN = /GAME_VERSION\s*=\s*["']([^"']+)["']/;

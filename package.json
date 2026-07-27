@@ -10,10 +10,12 @@
   "afnmWorkshop": {
     "workshopId": "3694065051",
     "title": "Lucky All Around",
-    "description": "Lucky All Around lets you control Explore pity-event luck and optional rare-event boosts. Updated for AFNM 0.7.6.\n\nWhat this mod does:\n- Adds a global setting for pity-event luck from 1x to 10x\n- Lets you choose between Force mode and Never Worse mode\n- Adds separate Empowered, Resplendent, Incandescent, and Transcendent event multipliers\n- Applies the chosen settings across all saves\n\nModes:\n- Force: every pity event uses exactly the multiplier you choose\n- Never Worse: lower vanilla tiers are raised up to your chosen multiplier, but higher vanilla tiers are kept\n\nExample:\n- Force 6x makes every pity tier 6x, which can lower native 8x and 10x tiers\n- Never Worse 6x behaves like a 6x floor instead\n\nImportant notes:\n- This changes Explore event weighting only\n- It does not rewrite unrelated luck systems or item drop quantities\n- It changes weighting, not guaranteed outcomes\n\nOpen the mod settings from the game's mod loading screen to adjust the mode and multipliers.\n\n[h1]My Other Mods[/h1]\n[list]\n[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=3661729323]CraftBuddy[/url] - A live crafting optimizer overlay with AutoBuddy auto mode\n[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=3701616500]ElderGPT Spirit Ring[/url] - A read-only AI advisor overlay that lets you chat with the AI model of your choice inside the game\n[/list]\n[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3704747572]View all my mods in my AFNM mod collection[/url]\n\n[h1]Make Your Own Mod[/h1]\nWant to build your own AFNM mod? Use the [url=https://github.com/lemon07r/AfnmAgentModTemplate]AFNM Agent Mod Template[/url] to get started fast with a ready-to-go scaffold, ModAPI reference docs, runtime validation scripts, and Workshop packaging built in. Works great with AI coding agents too.",
+    "description": "[h1]Lucky All Around 1.4.0 — AFNM 0.7.6[/h1]\n[i]Take control of Explore pity-event luck without changing unrelated game systems.[/i]\n\n[h2]What's new in 1.4.0[/h2]\n[list]\n[*]Updated and revalidated for AFNM 0.7.6.\n[*]Added separate boosts for Empowered, Resplendent, Incandescent, and Transcendent Explore events.\n[*]Reworked the runtime for safer, more focused Explore interception while preserving existing settings.\n[/list]\n\n[h2]Settings[/h2]\n[list]\n[*][b]Luck multiplier[/b] — choose from 1x to 10x.\n[*][b]Force[/b] — every pity event uses exactly your selected multiplier.\n[*][b]Never Worse[/b] — raises lower vanilla tiers to your selected multiplier while preserving better native tiers.\n[*][b]Rare-event boosts[/b] — configure each rare Explore event tier separately.\n[/list]\n\n[b]Example:[/b] Force 6x makes every pity tier 6x, which can lower native 8x and 10x tiers. Never Worse 6x acts as a 6x floor instead.\n\nOpen [b]Lucky All Around[/b] from the game's mod settings to configure it. Settings are global and apply across saves.\n\n[h2]Scope and compatibility[/h2]\n[list]\n[*]Changes Explore pity-event weighting only.\n[*]Does not alter item quantities, combat, crafting, or unrelated luck systems.\n[*]Changes probability weighting; it does not guarantee an outcome.\n[*]Existing settings from earlier versions remain compatible.\n[/list]\n\n[h1]My Other Mods[/h1]\n[list]\n[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=3661729323]CraftBuddy[/url] — a live crafting optimizer with AutoBuddy mode.\n[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=3701616500]ElderGPT Spirit Ring[/url] — a read-only, in-game AI advisor using your chosen model.\n[/list]\n[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3704747572]View my AFNM mod collection[/url]\n\n[h1]Make Your Own Mod[/h1]\nUse the [url=https://github.com/lemon07r/AfnmAgentModTemplate]AFNM Agent Mod Template[/url] for a ready-to-go scaffold with current ModAPI references, runtime validation, packaging, and Workshop publishing support.",
     "tags": [
       "Gameplay",
-      "Balance"
+      "Balance",
+      "Luck",
+      "Numerology"
     ],
     "visibility": "public",
     "previewImagePath": "lucky-afnm-thumb.jpg"
@@ -40,6 +42,7 @@
     "typescript": "^5.9.3",
     "webpack": "^5.105.3",
     "webpack-cli": "^6.0.1",
+    "yauzl": "^3.2.0",
     "zip-a-folder": "^4.0.4"
   }
 }
